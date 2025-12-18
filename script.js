@@ -129,6 +129,52 @@ function roundRect(x, y, w, h, r) {
   ctx.closePath();
 }
 
+function formatNumber(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "";
+  return new Intl.NumberFormat("uz-UZ").format(Math.round(n));
+}
+
+function drawRightFittedText(text, xRight, y, maxWidth, baseFont, minFont, fillStyle) {
+  const prevFont = ctx.font;
+  const prevAlign = ctx.textAlign;
+  const prevFill = ctx.fillStyle;
+  ctx.textAlign = "right";
+  ctx.fillStyle = fillStyle;
+
+  let size = baseFont;
+  while (size >= minFont) {
+    ctx.font = `900 ${size}px Arial`;
+    if (ctx.measureText(text).width <= maxWidth) break;
+    size -= 2;
+  }
+  ctx.fillText(text, xRight, y);
+
+  ctx.font = prevFont;
+  ctx.textAlign = prevAlign;
+  ctx.fillStyle = prevFill;
+}
+
+function drawCenteredFittedText(text, xCenter, y, maxWidth, baseFont, minFont, fillStyle) {
+  const prevFont = ctx.font;
+  const prevAlign = ctx.textAlign;
+  const prevFill = ctx.fillStyle;
+  ctx.textAlign = "center";
+  ctx.fillStyle = fillStyle;
+
+  let size = baseFont;
+  while (size >= minFont) {
+    ctx.font = `900 ${size}px Arial`;
+    if (ctx.measureText(text).width <= maxWidth) break;
+    size -= 2;
+  }
+  ctx.fillText(text, xCenter, y);
+
+  ctx.font = prevFont;
+  ctx.textAlign = prevAlign;
+  ctx.fillStyle = prevFill;
+}
+
 /* LOGO */
 logoInputEl.onchange = e => {
   const file = e.target.files && e.target.files[0];
@@ -211,7 +257,7 @@ excelInputEl.onchange = e => {
 function drawSennik(name, price, theme = "light") {
   const dpr = Math.max(1, Math.round(window.devicePixelRatio || 1));
   const w = 900;
-  const h = 600;
+  const h = 1200;
   canvas.width = w * dpr;
   canvas.height = h * dpr;
   canvas.style.width = w + "px";
@@ -233,83 +279,88 @@ function drawSennik(name, price, theme = "light") {
   ctx.shadowColor = isDark ? "rgba(0,0,0,0.7)" : "rgba(0,0,0,0.15)";
   ctx.shadowBlur = isDark ? 18 : 25;
   ctx.fillStyle = isDark ? "#0b0b0f" : "#ffffff";
-  ctx.fillRect(20, 20, 860, 560);
+  ctx.fillRect(20, 20, 860, 1160);
   ctx.shadowBlur = 0;
 
   ctx.fillStyle = textPrimary;
-  ctx.font = "700 24px Arial";
+  ctx.font = "900 42px Arial";
 
-  const headerY = 82;
+  const headerY = 112;
   const leftX = 60;
 
   let headerX = leftX;
   let logoBottomY = 60;
   if (logoImg) {
-    const maxW = 230;
-    const maxH = 90;
+    const maxW = 340;
+    const maxH = 170;
     const r = Math.min(maxW / logoImg.width, maxH / logoImg.height);
     const dw = Math.round(logoImg.width * r);
     const dh = Math.round(logoImg.height * r);
     const lx = leftX;
-    const ly = 46;
+    const ly = 68;
     if (isDark) {
-      const pad = 10;
+      const pad = 14;
       const bgX = lx - pad;
       const bgY = ly - pad;
       const bgW = dw + pad * 2;
       const bgH = dh + pad * 2;
       ctx.save();
       ctx.shadowColor = "rgba(0,0,0,0.65)";
-      ctx.shadowBlur = 14;
+      ctx.shadowBlur = 18;
       ctx.fillStyle = "#f8fafc";
       roundRect(bgX, bgY, bgW, bgH, 14);
       ctx.fill();
       ctx.shadowBlur = 0;
       ctx.strokeStyle = "rgba(251,191,36,0.55)";
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 3;
       roundRect(bgX, bgY, bgW, bgH, 14);
       ctx.stroke();
       ctx.restore();
     }
     ctx.drawImage(logoImg, lx, ly, dw, dh);
     headerX = leftX + dw + 18;
-    logoBottomY = 46 + dh;
+    logoBottomY = ly + dh;
   }
 
   const company = (companyNameEl.value || "").trim();
   if (company) {
-    ctx.fillText(company, headerX, headerY);
+    const maxW = 760;
+    drawCenteredFittedText(company, w / 2, headerY, maxW, 62, 34, textPrimary);
   }
 
-  const dividerY = Math.max(118, logoBottomY + 10);
+  const dividerY = Math.max(210, logoBottomY + 18);
   ctx.fillStyle = accent;
-  ctx.fillRect(60, dividerY, 780, 4);
+  ctx.fillRect(60, dividerY, 780, 6);
 
   ctx.fillStyle = textPrimary;
-  ctx.font = "800 34px Arial";
-  const titleLines = wrapText(name, 60, 175, 780, 40, 2);
+  ctx.font = "900 76px Arial";
+  const titleLines = wrapText(name, 60, dividerY + 104, 780, 84, 2);
 
-  ctx.font = "700 30px Arial";
+  ctx.font = "900 72px Arial";
   ctx.fillStyle = textSecondary;
-  const priceY = 175 + titleLines * 40 + 14;
+  const priceY = dividerY + 104 + titleLines * 84 + 26;
   ctx.fillText(formatUzs(price), 60, priceY);
 
-  const tableTop = 295;
+  const tableTop = priceY + 135;
   const tableX = 60;
   const tableW = 780;
-  const headerH = 46;
-  const rowH = 44;
+  const headerH = 78;
+  const rowH = 98;
   const col1X = 90;
-  const col2X = 520;
+  const col2X = 470;
+  const rightX = tableX + tableW - 50;
 
   ctx.fillStyle = isDark ? "#111827" : "#eef2ff";
   ctx.fillRect(tableX, tableTop - headerH, tableW, headerH);
   ctx.fillStyle = textPrimary;
-  ctx.font = "700 20px Arial";
-  ctx.fillText("Muddat (oy)", col1X, tableTop - 14);
-  ctx.fillText("Oylik to'lov", col2X, tableTop - 14);
+  ctx.font = "900 44px Arial";
+  ctx.fillText("Muddat (oy)", col1X, tableTop - 26);
+  ctx.save();
+  ctx.textAlign = "right";
+  ctx.fillText("Oylik to'lov", rightX, tableTop - 26);
+  ctx.restore();
 
-  ctx.font = "700 20px Arial";
+  ctx.font = "900 54px Arial";
   let y = tableTop;
   for (let i = 0; i < plans.length; i++) {
     const pl = plans[i];
@@ -327,10 +378,20 @@ function drawSennik(name, price, theme = "light") {
     ctx.stroke();
 
     ctx.fillStyle = textPrimary;
-    ctx.fillText(pl.months + " oy", col1X, y + 28);
+    ctx.fillText(pl.months + " oy", col1X, y + 62);
 
-    ctx.fillStyle = textSecondary;
-    ctx.fillText(formatUzs(monthly) + "/oy", col2X, y + 28);
+    const amount = formatNumber(monthly);
+    const amountText = amount;
+    const suffix = "dan";
+
+    const maxW = rightX - col2X;
+    drawRightFittedText(amountText, rightX, y + 62, maxW, 52, 34, textSecondary);
+    ctx.save();
+    ctx.textAlign = "right";
+    ctx.fillStyle = textPrimary;
+    ctx.font = "800 28px Arial";
+    ctx.fillText(suffix, rightX, y + 92);
+    ctx.restore();
 
     y += rowH;
   }
@@ -461,17 +522,18 @@ async function downloadPdfAll() {
   const doc = new jspdf.jsPDF({ orientation: "p", unit: "mm", format: "a4" });
   const pageW = 210;
   const pageH = 297;
-  const margin = 2;
+  const margin = 1;
   const cols = 3;
-  const rows = 4;
+  const rows = 3;
   const cellW = (pageW - margin * 2) / cols;
   const cellH = (pageH - margin * 2) / rows;
-  const pad = 0.6;
+  const pad = 0.25;
 
+  const perPage = cols * rows;
   for (let i = 0; i < list.length; i++) {
-    if (i > 0 && i % (cols * rows) === 0) doc.addPage();
+    if (i > 0 && i % perPage === 0) doc.addPage();
 
-    const pos = i % (cols * rows);
+    const pos = i % perPage;
     const c = pos % cols;
     const r = Math.floor(pos / cols);
     const x = margin + c * cellW;
@@ -487,7 +549,7 @@ async function downloadPdfAll() {
     }
 
     const img = item.img;
-    const aspect = 900 / 600;
+    const aspect = 900 / 1200;
     let drawW = fitW;
     let drawH = drawW / aspect;
     if (drawH > fitH) {
