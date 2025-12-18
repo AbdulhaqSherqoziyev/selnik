@@ -225,25 +225,44 @@ function drawSennik(name, price) {
   ctx.fillText(formatUzs(price), 80, priceY);
 
   const tableTop = 305;
+  const tableX = 80;
+  const tableW = 740;
+  const headerH = 46;
+  const rowH = 44;
+  const col1X = 110;
+  const col2X = 520;
+
   ctx.fillStyle = "#eef2ff";
-  ctx.fillRect(80, tableTop - 44, 740, 46);
+  ctx.fillRect(tableX, tableTop - headerH, tableW, headerH);
   ctx.fillStyle = "#111827";
   ctx.font = "700 20px Arial";
-  ctx.fillText("Muddat", 110, tableTop - 14);
-  ctx.fillText("Foiz", 360, tableTop - 14);
-  ctx.fillText("Oylik to'lov", 540, tableTop - 14);
+  ctx.fillText("Muddat (oy)", col1X, tableTop - 14);
+  ctx.fillText("Oylik to'lov", col2X, tableTop - 14);
 
-  ctx.font = "600 20px Arial";
-  let y = tableTop + 22;
-  for (const pl of plans) {
+  ctx.font = "700 20px Arial";
+  let y = tableTop;
+  for (let i = 0; i < plans.length; i++) {
+    const pl = plans[i];
     const monthly = calcMonthly(price, pl.months, pl.percent);
+
+    if (i % 2 === 0) {
+      ctx.fillStyle = "#f8fafc";
+      ctx.fillRect(tableX, y, tableW, rowH);
+    }
+
+    ctx.strokeStyle = "#e5e7eb";
+    ctx.beginPath();
+    ctx.moveTo(tableX, y + rowH);
+    ctx.lineTo(tableX + tableW, y + rowH);
+    ctx.stroke();
+
     ctx.fillStyle = "#111827";
-    ctx.fillText(pl.months + " oy", 110, y);
-    ctx.fillStyle = "#334155";
-    ctx.fillText(pl.percent + "%", 360, y);
+    ctx.fillText(pl.months + " oy", col1X, y + 28);
+
     ctx.fillStyle = "#0f172a";
-    ctx.fillText(formatUzs(monthly) + "/oy", 540, y);
-    y += 42;
+    ctx.fillText(formatUzs(monthly) + "/oy", col2X, y + 28);
+
+    y += rowH;
   }
 
   ctx.fillStyle = "#6b7280";
