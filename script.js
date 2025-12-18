@@ -1,149 +1,332 @@
-const productsDiv = document.getElementById("products");
-const previewDiv = document.getElementById("preview");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
+const companyNameEl = document.getElementById("companyName");
+const logoInputEl = document.getElementById("logoInput");
+const logoPreviewEl = document.getElementById("logoPreview");
+const manualProductsEl = document.getElementById("manualProducts");
+const excelInputEl = document.getElementById("excelInput");
+const previewManualEl = document.getElementById("previewManual");
+const previewExcelEl = document.getElementById("previewExcel");
 
 let logoImg = null;
-let previews = [];
+let logoObjectUrl = null;
+let manualImgs = [];
+let excelImgs = [];
+let excelData = [];
 
-// Logo load (aspect ratio saqlanadi)
-logoInput.onchange = e => {
-  const img = new Image();
-  img.onload = () => logoImg = img;
-  img.src = URL.createObjectURL(e.target.files[0]);
+const formatUzs = value => {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "";
+  return new Intl.NumberFormat("uz-UZ").format(Math.round(n)) + " so'm";
 };
 
-// Add product
-function addProduct() {
+const parsePrice = raw => {
+  if (raw === null || raw === undefined) return NaN;
+  const s = String(raw).replace(/\s+/g, "").replace(/,/g, ".");
+  const n = Number(s);
+  return Number.isFinite(n) ? n : NaN;
+};
+
+const safeFileName = s => String(s || "sennik").replace(/[\\/:*?"<>|]+/g, "-").trim();
+
+function setButtonsEnabled() {
+  const manualBtn = document.querySelector("button.primary[onclick=\"downloadManualZip()\"]");
+  const excelBtn = document.querySelector("button.primary[onclick=\"downloadExcelZip()\"]");
+  if (manualBtn) manualBtn.disabled = manualImgs.length === 0;
+  if (excelBtn) excelBtn.disabled = excelImgs.length === 0;
+}
+
+function showInlineError(container, message) {
+  let el = container.querySelector(".inline-error");
+  if (!message) {
+    if (el) el.remove();
+    return;
+  }
+  if (!el) {
+    el = document.createElement("div");
+    el.className = "inline-error";
+    container.prepend(el);
+  }
+  el.textContent = message;
+}
+
+function getPlans() {
+  const monthsEls = Array.from(document.querySelectorAll(".months"));
+  const percentEls = Array.from(document.querySelectorAll(".percent"));
+  const plans = [];
+  for (let i = 0; i < Math.min(monthsEls.length, percentEls.length); i++) {
+    const months = Number(monthsEls[i].value);
+    const percent = Number(percentEls[i].value);
+    if (!Number.isFinite(months) || months <= 0) continue;
+    if (!Number.isFinite(percent) || percent < 0) continue;
+    plans.push({ months, percent });
+  }
+  plans.sort((a, b) => a.months - b.months);
+  return plans;
+}
+
+function calcMonthly(price, months, percent) {
+  const total = price * (1 + percent / 100);
+  return Math.ceil(total / months);
+}
+
+function wrapText(text, x, y, maxWidth, lineHeight, maxLines) {
+  const words = String(text || "").split(/\s+/).filter(Boolean);
+  const lines = [];
+  let line = "";
+  for (const w of words) {
+    const test = line ? line + " " + w : w;
+    if (ctx.measureText(test).width <= maxWidth) {
+      line = test;
+      continue;
+    }
+    if (line) lines.push(line);
+    line = w;
+    if (lines.length === maxLines - 1) break;
+  }
+  if (line && lines.length < maxLines) lines.push(line);
+  for (let i = 0; i < lines.length; i++) ctx.fillText(lines[i], x, y + i * lineHeight);
+  return lines.length;
+}
+
+/* LOGO */
+logoInputEl.onchange = e => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  if (logoObjectUrl) URL.revokeObjectURL(logoObjectUrl);
+  logoObjectUrl = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    logoImg = img;
+    logoPreviewEl.src = logoObjectUrl;
+  };
+  img.onerror = () => {
+    logoImg = null;
+    logoPreviewEl.src = "";
+  };
+  img.src = logoObjectUrl;
+};
+function removeLogo() {
+  logoImg = null;
+  if (logoObjectUrl) URL.revokeObjectURL(logoObjectUrl);
+  logoObjectUrl = null;
+  logoPreviewEl.src = "";
+  logoInputEl.value = "";
+}
+
+/* MANUAL */
+function addManual() {
   const div = document.createElement("div");
-  div.className = "product";
-  div.innerHTML = `
-    <input placeholder="Mahsulot nomi">
-    <input type="number" placeholder="Narxi (so'm)">
-  `;
-  productsDiv.appendChild(div);
+  div.className = "manual-row";
+  div.innerHTML = `<input class="manual-name" placeholder="Nomi"><input class="manual-price" placeholder="Narxi" inputmode="decimal"><button type="button" class="danger" aria-label="O'chirish">✕</button>`;
+  div.querySelector("button").onclick = () => {
+    div.remove();
+  };
+  manualProductsEl.appendChild(div);
 }
-addProduct();
+addManual();
 
-// Generate all senniks (preview only)
-function generateAll() {
-  previewDiv.innerHTML = "";
-  previews = [];
+/* EXCEL */
+excelInputEl.onchange = e => {
+  const reader = new FileReader();
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
 
-  document.querySelectorAll(".product").forEach((p, i) => {
-    const name = p.children[0].value;
-    const price = Number(p.children[1].value);
-    if (!name || !price) return;
+  reader.onload = evt => {
+    try {
+      const wb = XLSX.read(evt.target.result, { type: "array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const sheet = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true });
+      const rows = (sheet || []).filter(r => Array.isArray(r) && (r[0] !== undefined || r[1] !== undefined));
 
-    const img = drawSennik(name, price);
-    previews.push(img);
+      let start = 0;
+      if (rows.length) {
+        const h0 = String(rows[0][0] ?? "").toLowerCase();
+        const h1 = String(rows[0][1] ?? "").toLowerCase();
+        const looksHeader =
+          h0.includes("nom") ||
+          h0.includes("product") ||
+          h1.includes("narx") ||
+          h1.includes("price");
+        if (looksHeader) start = 1;
+      }
 
-    const card = document.createElement("div");
-    card.className = "preview-card";
-    card.innerHTML = `
-      <img src="${img}">
-      <button onclick="downloadOne(${i})">⬇️ Yuklab olish</button>
-    `;
-    previewDiv.appendChild(card);
-  });
-}
+      excelData = rows
+        .slice(start)
+        .map(r => ({ name: String(r[0] ?? "").trim(), price: parsePrice(r[1]) }))
+        .filter(x => x.name && Number.isFinite(x.price) && x.price > 0);
 
-// Premium sennik design
+      const card = excelInputEl.closest(".card") || document.body;
+      showInlineError(card, excelData.length ? "" : "Excel faylda to'g'ri ma'lumot topilmadi (2 ustun: nomi va narxi).");
+    } catch (err) {
+      excelData = [];
+      const card = excelInputEl.closest(".card") || document.body;
+      showInlineError(card, "Excel faylni o'qib bo'lmadi. Formatni tekshiring (.xlsx). ");
+    }
+  };
+  reader.readAsArrayBuffer(file);
+};
+
+/* DRAW */
 function drawSennik(name, price) {
-  const W = 900, H = 600;
-  ctx.clearRect(0,0,W,H);
+  const dpr = Math.max(1, Math.round(window.devicePixelRatio || 1));
+  const w = 900;
+  const h = 600;
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  canvas.style.width = w + "px";
+  canvas.style.height = h + "px";
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  // background
+  const plans = getPlans();
+
+  ctx.clearRect(0, 0, w, h);
   ctx.fillStyle = "#f3f4f6";
-  ctx.fillRect(0,0,W,H);
+  ctx.fillRect(0, 0, w, h);
 
-  // card
-  ctx.fillStyle = "#fff";
-  ctx.shadowColor = "rgba(0,0,0,0.12)";
-  ctx.shadowBlur = 30;
-  ctx.fillRect(40,40,820,520);
+  ctx.shadowColor = "rgba(0,0,0,0.15)";
+  ctx.shadowBlur = 25;
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(40, 40, 820, 520);
   ctx.shadowBlur = 0;
 
-  // header
-  let headerY = 90;
+  ctx.fillStyle = "#111827";
+  ctx.font = "700 24px Arial";
+
+  const headerY = 92;
+  const leftX = 80;
+
+  let headerX = leftX;
   if (logoImg) {
+    const maxW = 170;
     const maxH = 70;
-    const ratio = logoImg.width / logoImg.height;
-    const h = maxH;
-    const w = h * ratio;
-    ctx.drawImage(logoImg, 70, headerY - h/2, w, h);
-    ctx.font = "bold 28px Inter, Arial";
-    ctx.fillStyle = "#111";
-    ctx.fillText(companyName.value, 70 + w + 20, headerY + 10);
-  } else {
-    ctx.font = "bold 30px Inter, Arial";
-    ctx.fillText(companyName.value, 70, headerY);
+    const r = Math.min(maxW / logoImg.width, maxH / logoImg.height);
+    const dw = Math.round(logoImg.width * r);
+    const dh = Math.round(logoImg.height * r);
+    ctx.drawImage(logoImg, leftX, 60, dw, dh);
+    headerX = leftX + dw + 18;
   }
 
-  // product
-  ctx.font = "bold 34px Inter, Arial";
-  ctx.fillText(name, 100, 180);
+  const company = (companyNameEl.value || "").trim();
+  if (company) {
+    ctx.fillText(company, headerX, headerY);
+  }
 
-  // price badge
-  const priceText = `${price.toLocaleString()} so'm`;
-  ctx.font = "bold 22px Inter, Arial";
-  const tw = ctx.measureText(priceText).width;
+  ctx.fillStyle = "#4f46e5";
+  ctx.fillRect(80, 125, 740, 4);
+
+  ctx.fillStyle = "#111827";
+  ctx.font = "800 34px Arial";
+  const titleLines = wrapText(name, 80, 185, 740, 40, 2);
+
+  ctx.font = "700 30px Arial";
+  ctx.fillStyle = "#0f172a";
+  const priceY = 185 + titleLines * 40 + 14;
+  ctx.fillText(formatUzs(price), 80, priceY);
+
+  const tableTop = 305;
   ctx.fillStyle = "#eef2ff";
-  ctx.fillRect(100, 200, tw + 40, 46);
-  ctx.fillStyle = "#4338ca";
-  ctx.fillText(priceText, 120, 232);
+  ctx.fillRect(80, tableTop - 44, 740, 46);
+  ctx.fillStyle = "#111827";
+  ctx.font = "700 20px Arial";
+  ctx.fillText("Muddat", 110, tableTop - 14);
+  ctx.fillText("Foiz", 360, tableTop - 14);
+  ctx.fillText("Oylik to'lov", 540, tableTop - 14);
 
-  // table
-  const months = document.querySelectorAll(".months");
-  const percents = document.querySelectorAll(".percent");
+  ctx.font = "600 20px Arial";
+  let y = tableTop + 22;
+  for (const pl of plans) {
+    const monthly = calcMonthly(price, pl.months, pl.percent);
+    ctx.fillStyle = "#111827";
+    ctx.fillText(pl.months + " oy", 110, y);
+    ctx.fillStyle = "#334155";
+    ctx.fillText(pl.percent + "%", 360, y);
+    ctx.fillStyle = "#0f172a";
+    ctx.fillText(formatUzs(monthly) + "/oy", 540, y);
+    y += 42;
+  }
 
-  let y = 300;
-  ctx.font = "bold 20px Inter, Arial";
-  ctx.fillStyle = "#111";
-  ctx.fillText("Muddat", 160, y - 30);
-  ctx.fillText("Oyiga to‘lov", 520, y - 30);
-
-  ctx.font = "20px Inter, Arial";
-
-  months.forEach((m,i)=>{
-    const total = price * (1 + percents[i].value / 100);
-    const monthly = Math.round(total / m.value);
-
-    ctx.fillStyle = i % 2 === 0 ? "#f9fafb" : "#ffffff";
-    ctx.fillRect(120, y - 22, 620, 44);
-
-    ctx.fillStyle = "#111";
-    ctx.fillText(`${m.value} oy`, 160, y + 5);
-    ctx.fillText(`${monthly.toLocaleString()} so'm / oy`, 520, y + 5);
-
-    y += 52;
-  });
-
-  // footer
-  ctx.font = "14px Inter, Arial";
-  ctx.fillStyle = "#9ca3af";
-  ctx.fillText("Nasiya shartlari do‘kon tomonidan belgilanadi", 100, 520);
+  ctx.fillStyle = "#6b7280";
+  ctx.font = "500 16px Arial";
+  ctx.fillText("Nasiya sennik avtomatik hisoblandi", 80, 540);
 
   return canvas.toDataURL("image/png");
 }
 
-// Download one
-function downloadOne(i) {
-  const a = document.createElement("a");
-  a.href = previews[i];
-  a.download = `sennik_${i+1}.png`;
-  a.click();
+/* GENERATE */
+function generateAll() {
+  previewManualEl.innerHTML = "";
+  previewExcelEl.innerHTML = "";
+  manualImgs = [];
+  excelImgs = [];
+
+  const plans = getPlans();
+  const plansCard = document.querySelector(".plans")?.closest(".card") || document.body;
+  showInlineError(plansCard, plans.length ? "" : "Nasiya shartlarini to'g'ri kiriting (oy > 0, foiz >= 0). ");
+  if (!plans.length) {
+    setButtonsEnabled();
+    return;
+  }
+
+  const manualRows = Array.from(document.querySelectorAll("#manualProducts .manual-row"));
+  for (const row of manualRows) {
+    const name = (row.querySelector(".manual-name")?.value || "").trim();
+    const price = parsePrice(row.querySelector(".manual-price")?.value);
+    if (!name && !row.querySelector(".manual-price")?.value) continue;
+    const isValid = name && Number.isFinite(price) && price > 0;
+    row.style.outline = isValid ? "" : "2px solid #fecaca";
+    if (!isValid) continue;
+
+    const img = drawSennik(name, price);
+    manualImgs.push({ name, img });
+    previewManualEl.appendChild(makePreviewCard(name, img));
+  }
+
+  for (const r of excelData) {
+    const img = drawSennik(r.name, r.price);
+    excelImgs.push({ name: r.name, img });
+    previewExcelEl.appendChild(makePreviewCard(r.name, img));
+  }
+
+  setButtonsEnabled();
 }
 
-// Download all ZIP
-async function downloadAllZip() {
-  const zip = new JSZip();
-  previews.forEach((img,i)=>{
-    zip.file(`sennik_${i+1}.png`, img.split(",")[1], {base64:true});
-  });
-  const blob = await zip.generateAsync({type:"blob"});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "senniklar.zip";
-  a.click();
+function makePreviewCard(name, img) {
+  const card = document.createElement("div");
+  card.className = "preview-card";
+  const safe = safeFileName(name) || "sennik";
+  card.innerHTML = `
+    <img alt="${safe}" src="${img}">
+    <div class="preview-actions">
+      <a class="secondary" download="${safe}.png" href="${img}">PNG yuklab olish</a>
+    </div>
+  `;
+  return card;
 }
+
+/* ZIP */
+async function makeZip(list, name) {
+  const manualBtn = document.querySelector("button.primary[onclick=\"downloadManualZip()\"]");
+  const excelBtn = document.querySelector("button.primary[onclick=\"downloadExcelZip()\"]");
+  if (manualBtn) manualBtn.disabled = true;
+  if (excelBtn) excelBtn.disabled = true;
+  const zip = new JSZip();
+  list.forEach((item, i) => {
+    const dataUrl = item.img || item;
+    const base64 = String(dataUrl).split(",")[1];
+    const fnameBase = item.name ? safeFileName(item.name) : `sennik_${i + 1}`;
+    zip.file(`${fnameBase || `sennik_${i + 1}`}.png`, base64, { base64: true });
+  });
+  const blob = await zip.generateAsync({ type: "blob" });
+  const a = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  a.href = url;
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  setButtonsEnabled();
+}
+function downloadManualZip() { makeZip(manualImgs, "manual_senniklar.zip"); }
+function downloadExcelZip() { makeZip(excelImgs, "excel_senniklar.zip"); }
+
+setButtonsEnabled();

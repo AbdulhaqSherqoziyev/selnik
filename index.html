@@ -2,59 +2,70 @@
 <html lang="uz">
 <head>
   <meta charset="UTF-8">
-  <title>Premium Sennik Generator</title>
+  <title>Sennik Generator Pro</title>
+
   <link rel="stylesheet" href="style.css">
+
+  <!-- ZIP -->
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
+  <!-- EXCEL -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
 <div class="container">
-  <h1>🧾 PREMIUM SENNIK GENERATOR</h1>
-  <p class="subtitle">Kompyuter do‘konlar uchun professional sennik</p>
+  <h1>🧾 SENNIK GENERATOR PRO</h1>
 
-  <!-- SETTINGS -->
+  <!-- LOGO -->
   <div class="card">
     <label>Kompaniya nomi</label>
     <input id="companyName" placeholder="SMART TECH STORE">
 
-    <label>Logo yuklash</label>
-    <input type="file" id="logoInput" accept="image/*">
-
-    <h3>Nasiya shartlari (barchasi uchun)</h3>
-    <div class="plans">
-      <div class="plan-row">
-        <input class="months" value="3"><span>oy</span>
-        <input class="percent" value="15"><span>%</span>
-      </div>
-      <div class="plan-row">
-        <input class="months" value="6"><span>oy</span>
-        <input class="percent" value="25"><span>%</span>
-      </div>
-      <div class="plan-row">
-        <input class="months" value="9"><span>oy</span>
-        <input class="percent" value="35"><span>%</span>
-      </div>
-      <div class="plan-row">
-        <input class="months" value="12"><span>oy</span>
-        <input class="percent" value="44"><span>%</span>
-      </div>
+    <label>Logo</label>
+    <div class="logo-box">
+      <input type="file" id="logoInput" accept="image/*">
+      <img id="logoPreview">
+      <button onclick="removeLogo()">❌ Logo olib tashlash</button>
     </div>
   </div>
 
-  <!-- PRODUCTS -->
+  <!-- NASIYA -->
   <div class="card">
-    <h3>Mahsulotlar</h3>
-    <div id="products"></div>
-    <button class="ghost" onclick="addProduct()">➕ Mahsulot qo‘shish</button>
+    <h3>Nasiya shartlari (hammasi uchun)</h3>
+    <div class="plans">
+      <div class="plan-row"><input class="months" value="3"><span>oy</span><input class="percent" value="15"><span>%</span></div>
+      <div class="plan-row"><input class="months" value="6"><span>oy</span><input class="percent" value="25"><span>%</span></div>
+      <div class="plan-row"><input class="months" value="9"><span>oy</span><input class="percent" value="35"><span>%</span></div>
+      <div class="plan-row"><input class="months" value="12"><span>oy</span><input class="percent" value="44"><span>%</span></div>
+    </div>
+  </div>
+
+  <!-- MANUAL -->
+  <div class="card">
+    <h3>✍️ Qo‘lda mahsulot kiritish</h3>
+    <div id="manualProducts"></div>
+    <button onclick="addManual()">➕ Qo‘shish</button>
+  </div>
+
+  <!-- EXCEL -->
+  <div class="card">
+    <h3>📊 Excel orqali import</h3>
+    <input type="file" id="excelInput" accept=".xlsx">
+    <p class="hint">1-ustun: mahsulot nomi, 2-ustun: narxi</p>
   </div>
 
   <button class="primary" onclick="generateAll()">🎨 Senniklarni yaratish</button>
 
   <!-- PREVIEW -->
-  <h3 class="center">Yaratilgan senniklar</h3>
-  <div id="preview" class="preview-grid"></div>
+  <h3>🖼 Preview (qo‘lda)</h3>
+  <div id="previewManual" class="preview-grid"></div>
 
-  <button class="primary" onclick="downloadAllZip()">📦 Hammasini ZIP qilib yuklab olish</button>
+  <h3>🖼 Preview (Excel)</h3>
+  <div id="previewExcel" class="preview-grid"></div>
+
+  <button class="primary" onclick="downloadManualZip()">📦 Qo'lda ZIP</button>
+  <button class="primary" onclick="downloadExcelZip()">📦 Excel ZIP</button>
 
   <canvas id="canvas" width="900" height="600" hidden></canvas>
 </div>
