@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <title>Sennik Generator</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="app">
+  <h1>🧾 NASIYA SENNIK GENERATOR</h1>
+
+  <div class="form">
+    <label>Mahsulot nomi</label>
+    <input id="productName" placeholder="Masalan: Samsung 55 TV" />
+
+    <label>Asosiy narx (so'm)</label>
+    <input id="price" type="number" placeholder="5887720" />
+
+    <h3>Nasiya shartlari</h3>
+
+    <div class="plan">
+      <input value="3" class="months" /> oy
+      <input value="15" class="percent" /> %
+    </div>
+
+    <div class="plan">
+      <input value="6" class="months" /> oy
+      <input value="25" class="percent" /> %
+    </div>
+
+    <div class="plan">
+      <input value="9" class="months" /> oy
+      <input value="35" class="percent" /> %
+    </div>
+
+    <div class="plan">
+      <input value="12" class="months" /> oy
+      <input value="44" class="percent" /> %
+    </div>
+
+    <button onclick="generate()">🎨 Sennik rasm yaratish</button>
+  </div>
+
+  <canvas id="canvas" width="900" height="600"></canvas>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
