@@ -93,6 +93,26 @@ input {
 
 .plans { display: flex; flex-direction: column; gap: 10px; }
 
+.theme-toggle {
+  display: flex;
+  gap: 10px;
+}
+
+.theme-btn {
+  flex: 1;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  font-weight: 800;
+}
+
+.theme-btn.is-active {
+  background: #111827;
+  color: #fff;
+  border-color: #111827;
+}
+
 .plan-row {
   display: grid;
   grid-template-columns: 1fr auto 1fr auto;

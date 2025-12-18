@@ -11,6 +11,9 @@
 
   <!-- EXCEL -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- PDF -->
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 </head>
 <body>
 
@@ -41,6 +44,15 @@
     </div>
   </div>
 
+  <div class="card">
+    <h3>Sennik foni</h3>
+    <div class="theme-toggle" role="group" aria-label="Sennik foni">
+      <button type="button" class="theme-btn is-active" data-theme="light">Oq</button>
+      <button type="button" class="theme-btn" data-theme="dark">Qora</button>
+      <input type="hidden" id="themeValue" value="light">
+    </div>
+  </div>
+
   <!-- MANUAL -->
   <div class="card">
     <h3>✍️ Qo‘lda mahsulot kiritish</h3>
@@ -64,8 +76,10 @@
   <h3>🖼 Preview (Excel)</h3>
   <div id="previewExcel" class="preview-grid"></div>
 
-  <button class="primary" onclick="downloadManualZip()">📦 Qo'lda ZIP</button>
+  <button class="primary" onclick="downloadManualZip()">📦 Manual ZIP</button>
   <button class="primary" onclick="downloadExcelZip()">📦 Excel ZIP</button>
+  <button class="primary" onclick="downloadAllZip()">📦 Hammasini ZIP</button>
+  <button class="primary" onclick="downloadPdfAll()">📄 Hammasini PDF (A4 3×4)</button>
 
   <canvas id="canvas" width="900" height="600" hidden></canvas>
 </div>

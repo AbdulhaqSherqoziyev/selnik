@@ -7,12 +7,14 @@ const manualProductsEl = document.getElementById("manualProducts");
 const excelInputEl = document.getElementById("excelInput");
 const previewManualEl = document.getElementById("previewManual");
 const previewExcelEl = document.getElementById("previewExcel");
+const themeValueEl = document.getElementById("themeValue");
 
 let logoImg = null;
 let logoObjectUrl = null;
 let manualImgs = [];
 let excelImgs = [];
 let excelData = [];
+let currentTheme = "light";
 
 const formatUzs = value => {
   const n = Number(value);
@@ -32,8 +34,35 @@ const safeFileName = s => String(s || "sennik").replace(/[\\/:*?"<>|]+/g, "-").t
 function setButtonsEnabled() {
   const manualBtn = document.querySelector("button.primary[onclick=\"downloadManualZip()\"]");
   const excelBtn = document.querySelector("button.primary[onclick=\"downloadExcelZip()\"]");
+  const allBtn = document.querySelector("button.primary[onclick=\"downloadAllZip()\"]");
+  const pdfBtn = document.querySelector("button.primary[onclick=\"downloadPdfAll()\"]");
   if (manualBtn) manualBtn.disabled = manualImgs.length === 0;
   if (excelBtn) excelBtn.disabled = excelImgs.length === 0;
+  const allCount = manualImgs.length + excelImgs.length;
+  if (allBtn) allBtn.disabled = allCount === 0;
+  if (pdfBtn) pdfBtn.disabled = allCount === 0;
+}
+
+function getSelectedTheme() {
+  const v = themeValueEl ? themeValueEl.value : "light";
+  return v === "dark" ? "dark" : "light";
+}
+
+function initThemeToggle() {
+  const buttons = Array.from(document.querySelectorAll(".theme-btn[data-theme]"));
+  if (!buttons.length) return;
+  const apply = theme => {
+    currentTheme = theme === "dark" ? "dark" : "light";
+    if (themeValueEl) themeValueEl.value = currentTheme;
+    buttons.forEach(b => b.classList.toggle("is-active", b.dataset.theme === currentTheme));
+
+    const hasPreview = (previewManualEl && previewManualEl.children.length) || (previewExcelEl && previewExcelEl.children.length);
+    if (hasPreview) generateAll();
+  };
+  buttons.forEach(b => {
+    b.addEventListener("click", () => apply(b.dataset.theme));
+  });
+  apply(getSelectedTheme());
 }
 
 function showInlineError(container, message) {
@@ -87,6 +116,17 @@ function wrapText(text, x, y, maxWidth, lineHeight, maxLines) {
   if (line && lines.length < maxLines) lines.push(line);
   for (let i = 0; i < lines.length; i++) ctx.fillText(lines[i], x, y + i * lineHeight);
   return lines.length;
+}
+
+function roundRect(x, y, w, h, r) {
+  const radius = Math.max(0, Math.min(r, Math.min(w, h) / 2));
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + w, y, x + w, y + h, radius);
+  ctx.arcTo(x + w, y + h, x, y + h, radius);
+  ctx.arcTo(x, y + h, x, y, radius);
+  ctx.arcTo(x, y, x + w, y, radius);
+  ctx.closePath();
 }
 
 /* LOGO */
@@ -168,7 +208,7 @@ excelInputEl.onchange = e => {
 };
 
 /* DRAW */
-function drawSennik(name, price) {
+function drawSennik(name, price, theme = "light") {
   const dpr = Math.max(1, Math.round(window.devicePixelRatio || 1));
   const w = 900;
   const h = 600;
@@ -180,31 +220,60 @@ function drawSennik(name, price) {
 
   const plans = getPlans();
 
+  const isDark = theme === "dark";
+  const outerBg = isDark ? "#000000" : "#f3f4f6";
+  const accent = isDark ? "#fbbf24" : "#4f46e5";
+  const textPrimary = isDark ? "#fbbf24" : "#111827";
+  const textSecondary = isDark ? "#f59e0b" : "#0f172a";
+
   ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = "#f3f4f6";
+  ctx.fillStyle = outerBg;
   ctx.fillRect(0, 0, w, h);
 
-  ctx.shadowColor = "rgba(0,0,0,0.15)";
-  ctx.shadowBlur = 25;
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(40, 40, 820, 520);
+  ctx.shadowColor = isDark ? "rgba(0,0,0,0.7)" : "rgba(0,0,0,0.15)";
+  ctx.shadowBlur = isDark ? 18 : 25;
+  ctx.fillStyle = isDark ? "#0b0b0f" : "#ffffff";
+  ctx.fillRect(20, 20, 860, 560);
   ctx.shadowBlur = 0;
 
-  ctx.fillStyle = "#111827";
+  ctx.fillStyle = textPrimary;
   ctx.font = "700 24px Arial";
 
-  const headerY = 92;
-  const leftX = 80;
+  const headerY = 82;
+  const leftX = 60;
 
   let headerX = leftX;
+  let logoBottomY = 60;
   if (logoImg) {
-    const maxW = 170;
-    const maxH = 70;
+    const maxW = 230;
+    const maxH = 90;
     const r = Math.min(maxW / logoImg.width, maxH / logoImg.height);
     const dw = Math.round(logoImg.width * r);
     const dh = Math.round(logoImg.height * r);
-    ctx.drawImage(logoImg, leftX, 60, dw, dh);
+    const lx = leftX;
+    const ly = 46;
+    if (isDark) {
+      const pad = 10;
+      const bgX = lx - pad;
+      const bgY = ly - pad;
+      const bgW = dw + pad * 2;
+      const bgH = dh + pad * 2;
+      ctx.save();
+      ctx.shadowColor = "rgba(0,0,0,0.65)";
+      ctx.shadowBlur = 14;
+      ctx.fillStyle = "#f8fafc";
+      roundRect(bgX, bgY, bgW, bgH, 14);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = "rgba(251,191,36,0.55)";
+      ctx.lineWidth = 2;
+      roundRect(bgX, bgY, bgW, bgH, 14);
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.drawImage(logoImg, lx, ly, dw, dh);
     headerX = leftX + dw + 18;
+    logoBottomY = 46 + dh;
   }
 
   const company = (companyNameEl.value || "").trim();
@@ -212,29 +281,30 @@ function drawSennik(name, price) {
     ctx.fillText(company, headerX, headerY);
   }
 
-  ctx.fillStyle = "#4f46e5";
-  ctx.fillRect(80, 125, 740, 4);
+  const dividerY = Math.max(118, logoBottomY + 10);
+  ctx.fillStyle = accent;
+  ctx.fillRect(60, dividerY, 780, 4);
 
-  ctx.fillStyle = "#111827";
+  ctx.fillStyle = textPrimary;
   ctx.font = "800 34px Arial";
-  const titleLines = wrapText(name, 80, 185, 740, 40, 2);
+  const titleLines = wrapText(name, 60, 175, 780, 40, 2);
 
   ctx.font = "700 30px Arial";
-  ctx.fillStyle = "#0f172a";
-  const priceY = 185 + titleLines * 40 + 14;
-  ctx.fillText(formatUzs(price), 80, priceY);
+  ctx.fillStyle = textSecondary;
+  const priceY = 175 + titleLines * 40 + 14;
+  ctx.fillText(formatUzs(price), 60, priceY);
 
-  const tableTop = 305;
-  const tableX = 80;
-  const tableW = 740;
+  const tableTop = 295;
+  const tableX = 60;
+  const tableW = 780;
   const headerH = 46;
   const rowH = 44;
-  const col1X = 110;
+  const col1X = 90;
   const col2X = 520;
 
-  ctx.fillStyle = "#eef2ff";
+  ctx.fillStyle = isDark ? "#111827" : "#eef2ff";
   ctx.fillRect(tableX, tableTop - headerH, tableW, headerH);
-  ctx.fillStyle = "#111827";
+  ctx.fillStyle = textPrimary;
   ctx.font = "700 20px Arial";
   ctx.fillText("Muddat (oy)", col1X, tableTop - 14);
   ctx.fillText("Oylik to'lov", col2X, tableTop - 14);
@@ -246,34 +316,35 @@ function drawSennik(name, price) {
     const monthly = calcMonthly(price, pl.months, pl.percent);
 
     if (i % 2 === 0) {
-      ctx.fillStyle = "#f8fafc";
+      ctx.fillStyle = isDark ? "#0f172a" : "#f8fafc";
       ctx.fillRect(tableX, y, tableW, rowH);
     }
 
-    ctx.strokeStyle = "#e5e7eb";
+    ctx.strokeStyle = isDark ? "#1f2937" : "#e5e7eb";
     ctx.beginPath();
     ctx.moveTo(tableX, y + rowH);
     ctx.lineTo(tableX + tableW, y + rowH);
     ctx.stroke();
 
-    ctx.fillStyle = "#111827";
+    ctx.fillStyle = textPrimary;
     ctx.fillText(pl.months + " oy", col1X, y + 28);
 
-    ctx.fillStyle = "#0f172a";
+    ctx.fillStyle = textSecondary;
     ctx.fillText(formatUzs(monthly) + "/oy", col2X, y + 28);
 
     y += rowH;
   }
 
-  ctx.fillStyle = "#6b7280";
+  ctx.fillStyle = isDark ? "#fbbf24" : "#6b7280";
   ctx.font = "500 16px Arial";
-  ctx.fillText("Nasiya sennik avtomatik hisoblandi", 80, 540);
+  ctx.fillText("Nasiya sennik avtomatik hisoblandi", 60, 560);
 
   return canvas.toDataURL("image/png");
 }
 
 /* GENERATE */
 function generateAll() {
+  currentTheme = getSelectedTheme();
   previewManualEl.innerHTML = "";
   previewExcelEl.innerHTML = "";
   manualImgs = [];
@@ -296,14 +367,14 @@ function generateAll() {
     row.style.outline = isValid ? "" : "2px solid #fecaca";
     if (!isValid) continue;
 
-    const img = drawSennik(name, price);
-    manualImgs.push({ name, img });
+    const img = drawSennik(name, price, currentTheme);
+    manualImgs.push({ name, price, img, theme: currentTheme });
     previewManualEl.appendChild(makePreviewCard(name, img));
   }
 
   for (const r of excelData) {
-    const img = drawSennik(r.name, r.price);
-    excelImgs.push({ name: r.name, img });
+    const img = drawSennik(r.name, r.price, currentTheme);
+    excelImgs.push({ name: r.name, price: r.price, img, theme: currentTheme });
     previewExcelEl.appendChild(makePreviewCard(r.name, img));
   }
 
@@ -324,17 +395,33 @@ function makePreviewCard(name, img) {
 }
 
 /* ZIP */
+function buildUniqueZipNames(list) {
+  const used = new Map();
+  return list.map((item, idx) => {
+    const base = safeFileName(item.name) || `sennik_${idx + 1}`;
+    const c = (used.get(base) || 0) + 1;
+    used.set(base, c);
+    const unique = c === 1 ? base : `${base}_${c}`;
+    return { ...item, __zipName: unique };
+  });
+}
+
 async function makeZip(list, name) {
   const manualBtn = document.querySelector("button.primary[onclick=\"downloadManualZip()\"]");
   const excelBtn = document.querySelector("button.primary[onclick=\"downloadExcelZip()\"]");
+  const allBtn = document.querySelector("button.primary[onclick=\"downloadAllZip()\"]");
+  const pdfBtn = document.querySelector("button.primary[onclick=\"downloadPdfAll()\"]");
   if (manualBtn) manualBtn.disabled = true;
   if (excelBtn) excelBtn.disabled = true;
+  if (allBtn) allBtn.disabled = true;
+  if (pdfBtn) pdfBtn.disabled = true;
   const zip = new JSZip();
-  list.forEach((item, i) => {
+  const items = buildUniqueZipNames(list);
+  items.forEach((item, i) => {
     const dataUrl = item.img || item;
     const base64 = String(dataUrl).split(",")[1];
-    const fnameBase = item.name ? safeFileName(item.name) : `sennik_${i + 1}`;
-    zip.file(`${fnameBase || `sennik_${i + 1}`}.png`, base64, { base64: true });
+    const fnameBase = item.__zipName || `sennik_${i + 1}`;
+    zip.file(`${fnameBase}.png`, base64, { base64: true });
   });
   const blob = await zip.generateAsync({ type: "blob" });
   const a = document.createElement("a");
@@ -348,4 +435,74 @@ async function makeZip(list, name) {
 function downloadManualZip() { makeZip(manualImgs, "manual_senniklar.zip"); }
 function downloadExcelZip() { makeZip(excelImgs, "excel_senniklar.zip"); }
 
+function downloadAllZip() {
+  const all = [...manualImgs, ...excelImgs];
+  makeZip(all, "barcha_senniklar.zip");
+}
+
+async function downloadPdfAll() {
+  const allBtn = document.querySelector("button.primary[onclick=\"downloadAllZip()\"]");
+  const pdfBtn = document.querySelector("button.primary[onclick=\"downloadPdfAll()\"]");
+  if (allBtn) allBtn.disabled = true;
+  if (pdfBtn) pdfBtn.disabled = true;
+
+  const list = [...manualImgs, ...excelImgs];
+  if (!list.length) {
+    setButtonsEnabled();
+    return;
+  }
+
+  const jspdf = window.jspdf;
+  if (!jspdf || !jspdf.jsPDF) {
+    alert("PDF kutubxonasi yuklanmadi (jsPDF).");
+    setButtonsEnabled();
+    return;
+  }
+
+  const doc = new jspdf.jsPDF({ orientation: "p", unit: "mm", format: "a4" });
+  const pageW = 210;
+  const pageH = 297;
+  const margin = 2;
+  const cols = 3;
+  const rows = 4;
+  const cellW = (pageW - margin * 2) / cols;
+  const cellH = (pageH - margin * 2) / rows;
+  const pad = 0.6;
+
+  for (let i = 0; i < list.length; i++) {
+    if (i > 0 && i % (cols * rows) === 0) doc.addPage();
+
+    const pos = i % (cols * rows);
+    const c = pos % cols;
+    const r = Math.floor(pos / cols);
+    const x = margin + c * cellW;
+    const y = margin + r * cellH;
+
+    const item = list[i];
+    const fitW = cellW - pad * 2;
+    const fitH = cellH - pad * 2;
+
+    if (item.theme === "dark") {
+      doc.setFillColor(0, 0, 0);
+      doc.rect(x, y, cellW, cellH, "F");
+    }
+
+    const img = item.img;
+    const aspect = 900 / 600;
+    let drawW = fitW;
+    let drawH = drawW / aspect;
+    if (drawH > fitH) {
+      drawH = fitH;
+      drawW = drawH * aspect;
+    }
+    const dx = x + (cellW - drawW) / 2;
+    const dy = y + (cellH - drawH) / 2;
+    doc.addImage(img, "PNG", dx, dy, drawW, drawH);
+  }
+
+  doc.save("barcha_senniklar.pdf");
+  setButtonsEnabled();
+}
+
+initThemeToggle();
 setButtonsEnabled();
