@@ -1,48 +1,62 @@
 <!DOCTYPE html>
 <html lang="uz">
 <head>
-  <meta charset="UTF-8" />
-  <title>Sennik Generator</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8">
+  <title>Premium Sennik Generator</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 </head>
 <body>
 
-<div class="app">
-  <h1>🧾 NASIYA SENNIK GENERATOR</h1>
+<div class="container">
+  <h1>🧾 PREMIUM SENNIK GENERATOR</h1>
+  <p class="subtitle">Kompyuter do‘konlar uchun professional sennik</p>
 
-  <div class="form">
-    <label>Mahsulot nomi</label>
-    <input id="productName" placeholder="Masalan: Samsung 55 TV" />
+  <!-- SETTINGS -->
+  <div class="card">
+    <label>Kompaniya nomi</label>
+    <input id="companyName" placeholder="SMART TECH STORE">
 
-    <label>Asosiy narx (so'm)</label>
-    <input id="price" type="number" placeholder="5887720" />
+    <label>Logo yuklash</label>
+    <input type="file" id="logoInput" accept="image/*">
 
-    <h3>Nasiya shartlari</h3>
-
-    <div class="plan">
-      <input value="3" class="months" /> oy
-      <input value="15" class="percent" /> %
+    <h3>Nasiya shartlari (barchasi uchun)</h3>
+    <div class="plans">
+      <div class="plan-row">
+        <input class="months" value="3"><span>oy</span>
+        <input class="percent" value="15"><span>%</span>
+      </div>
+      <div class="plan-row">
+        <input class="months" value="6"><span>oy</span>
+        <input class="percent" value="25"><span>%</span>
+      </div>
+      <div class="plan-row">
+        <input class="months" value="9"><span>oy</span>
+        <input class="percent" value="35"><span>%</span>
+      </div>
+      <div class="plan-row">
+        <input class="months" value="12"><span>oy</span>
+        <input class="percent" value="44"><span>%</span>
+      </div>
     </div>
-
-    <div class="plan">
-      <input value="6" class="months" /> oy
-      <input value="25" class="percent" /> %
-    </div>
-
-    <div class="plan">
-      <input value="9" class="months" /> oy
-      <input value="35" class="percent" /> %
-    </div>
-
-    <div class="plan">
-      <input value="12" class="months" /> oy
-      <input value="44" class="percent" /> %
-    </div>
-
-    <button onclick="generate()">🎨 Sennik rasm yaratish</button>
   </div>
 
-  <canvas id="canvas" width="900" height="600"></canvas>
+  <!-- PRODUCTS -->
+  <div class="card">
+    <h3>Mahsulotlar</h3>
+    <div id="products"></div>
+    <button class="ghost" onclick="addProduct()">➕ Mahsulot qo‘shish</button>
+  </div>
+
+  <button class="primary" onclick="generateAll()">🎨 Senniklarni yaratish</button>
+
+  <!-- PREVIEW -->
+  <h3 class="center">Yaratilgan senniklar</h3>
+  <div id="preview" class="preview-grid"></div>
+
+  <button class="primary" onclick="downloadAllZip()">📦 Hammasini ZIP qilib yuklab olish</button>
+
+  <canvas id="canvas" width="900" height="600" hidden></canvas>
 </div>
 
 <script src="script.js"></script>
