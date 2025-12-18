@@ -337,11 +337,6 @@ function drawSennik(name, price, theme = "light") {
 
   ctx.fillStyle = isDark ? "#fbbf24" : "#6b7280";
   ctx.font = "500 16px Arial";
-<<<<<<< HEAD
-  ctx.fillText("Nasiya sennik avtomatik hisoblandi", 60, 560);
-=======
-  ctx.fillText("", 80, 540);
->>>>>>> d2c95949e23830b25bad666ee7fa6b11bae3f3da
 
   return canvas.toDataURL("image/png");
 }
