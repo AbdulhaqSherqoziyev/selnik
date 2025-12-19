@@ -19,7 +19,7 @@ let currentTheme = "light";
 const formatUzs = value => {
   const n = Number(value);
   if (!Number.isFinite(n)) return "";
-  return new Intl.NumberFormat("uz-UZ").format(Math.round(n)) + " so'm";
+  return String(Math.round(n)) + " so'm";
 };
 
 const parsePrice = raw => {
@@ -132,7 +132,7 @@ function roundRect(x, y, w, h, r) {
 function formatNumber(value) {
   const n = Number(value);
   if (!Number.isFinite(n)) return "";
-  return new Intl.NumberFormat("uz-UZ").format(Math.round(n));
+  return String(Math.round(n));
 }
 
 function drawRightFittedText(text, xRight, y, maxWidth, baseFont, minFont, fillStyle) {
@@ -382,14 +382,14 @@ function drawSennik(name, price, theme = "light") {
 
     const amount = formatNumber(monthly);
     const amountText = amount;
-    const suffix = "dan";
+    const suffix = "oy/so'mdan";
 
     const maxW = rightX - col2X;
     drawRightFittedText(amountText, rightX, y + 62, maxW, 52, 34, textSecondary);
     ctx.save();
     ctx.textAlign = "right";
     ctx.fillStyle = textPrimary;
-    ctx.font = "800 28px Arial";
+    ctx.font = "800 24px Arial";
     ctx.fillText(suffix, rightX, y + 92);
     ctx.restore();
 
