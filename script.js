@@ -8,6 +8,7 @@ const excelInputEl = document.getElementById("excelInput");
 const previewManualEl = document.getElementById("previewManual");
 const previewExcelEl = document.getElementById("previewExcel");
 const themeValueEl = document.getElementById("themeValue");
+const sizeValueEl = document.getElementById("sizeValue");
 
 let logoImg = null;
 let logoObjectUrl = null;
@@ -49,20 +50,49 @@ function getSelectedTheme() {
 }
 
 function initThemeToggle() {
-  const buttons = Array.from(document.querySelectorAll(".theme-btn[data-theme]"));
-  if (!buttons.length) return;
-  const apply = theme => {
-    currentTheme = theme === "dark" ? "dark" : "light";
-    if (themeValueEl) themeValueEl.value = currentTheme;
-    buttons.forEach(b => b.classList.toggle("is-active", b.dataset.theme === currentTheme));
-
-    const hasPreview = (previewManualEl && previewManualEl.children.length) || (previewExcelEl && previewExcelEl.children.length);
+  const root = document.querySelector(".theme-toggle");
+  if (!root) return;
+  const buttons = Array.from(root.querySelectorAll(".theme-btn"));
+  const apply = value => {
+    buttons.forEach(b => b.classList.toggle("is-active", b.dataset.theme === value));
+    themeValueEl.value = value;
+    const hasPreview = (manualImgs && manualImgs.length) || (excelImgs && excelImgs.length);
     if (hasPreview) generateAll();
   };
   buttons.forEach(b => {
     b.addEventListener("click", () => apply(b.dataset.theme));
   });
   apply(getSelectedTheme());
+}
+
+function getSelectedSize() {
+  const v = (sizeValueEl?.value || "lg").trim();
+  return v === "sm" || v === "md" || v === "lg" ? v : "lg";
+}
+
+function getSizeScale(size) {
+  if (size === "md") return 0.6;
+  if (size === "sm") return 0.4;
+  return 1;
+}
+
+function initSizeToggle() {
+  const root = document.querySelector(".size-toggle");
+  if (!root || !sizeValueEl) return;
+  const buttons = Array.from(root.querySelectorAll(".size-btn"));
+  const examplesRoot = document.querySelector(".size-examples");
+  const examples = examplesRoot ? Array.from(examplesRoot.querySelectorAll(".size-example")) : [];
+  const apply = value => {
+    buttons.forEach(b => b.classList.toggle("is-active", b.dataset.size === value));
+    examples.forEach(e => e.classList.toggle("is-active", e.dataset.size === value));
+    sizeValueEl.value = value;
+    const hasPreview = (manualImgs && manualImgs.length) || (excelImgs && excelImgs.length);
+    if (hasPreview) generateAll();
+  };
+  buttons.forEach(b => {
+    b.addEventListener("click", () => apply(b.dataset.size));
+  });
+  apply(getSelectedSize());
 }
 
 function showInlineError(container, message) {
@@ -116,6 +146,84 @@ function wrapText(text, x, y, maxWidth, lineHeight, maxLines) {
   if (line && lines.length < maxLines) lines.push(line);
   for (let i = 0; i < lines.length; i++) ctx.fillText(lines[i], x, y + i * lineHeight);
   return lines.length;
+}
+
+function drawFittedWrappedText(text, x, y, maxWidth, baseFont, minFont, maxLines, fillStyle) {
+  const prevFont = ctx.font;
+  const prevAlign = ctx.textAlign;
+  const prevFill = ctx.fillStyle;
+  ctx.textAlign = "left";
+  ctx.fillStyle = fillStyle;
+
+  const raw = String(text || "").trim();
+  const words = raw ? raw.split(/\s+/).filter(Boolean) : [];
+
+  const buildLines = (fontSize, withEllipsis) => {
+    ctx.font = `700 ${fontSize}px Arial`;
+    const lines = [];
+    let line = "";
+
+    for (let i = 0; i < words.length; i++) {
+      const w = words[i];
+      const test = line ? line + " " + w : w;
+      if (ctx.measureText(test).width <= maxWidth) {
+        line = test;
+        continue;
+      }
+
+      if (line) lines.push(line);
+      line = w;
+
+      if (lines.length === maxLines - 1) {
+        if (withEllipsis) {
+          const remaining = words.slice(i + 1).length > 0;
+          if (remaining || ctx.measureText(line).width > maxWidth) {
+            let last = line;
+            const dots = "…";
+            while (last && ctx.measureText(last + dots).width > maxWidth) {
+              last = last.slice(0, -1);
+            }
+            lines.push((last || "").trimEnd() + dots);
+            return lines;
+          }
+        }
+        lines.push(line);
+        return lines;
+      }
+    }
+
+    if (line) lines.push(line);
+    return lines;
+  };
+
+  let size = baseFont;
+  let lines = [];
+  while (size >= minFont) {
+    lines = buildLines(size, false);
+    if (words.length === 0) break;
+    if (lines.length <= maxLines) {
+      const combinedWords = lines.join(" ").split(/\s+/).filter(Boolean).length;
+      if (combinedWords >= words.length) break;
+    }
+    size -= 2;
+  }
+
+  if (words.length && (lines.join(" ").split(/\s+/).filter(Boolean).length < words.length || lines.length > maxLines)) {
+    size = Math.max(minFont, size);
+    lines = buildLines(size, true);
+  }
+
+  const lineHeight = Math.round(size * 1.1);
+  for (let i = 0; i < Math.min(lines.length, maxLines); i++) {
+    ctx.font = `700 ${size}px Arial`;
+    ctx.fillText(lines[i], x, y + i * lineHeight);
+  }
+
+  ctx.font = prevFont;
+  ctx.textAlign = prevAlign;
+  ctx.fillStyle = prevFill;
+
+  return { lines: Math.min(lines.length, maxLines), lineHeight };
 }
 
 function roundRect(x, y, w, h, r) {
@@ -254,15 +362,18 @@ excelInputEl.onchange = e => {
 };
 
 /* DRAW */
-function drawSennik(name, price, theme = "light") {
+function drawSennik(name, price, theme = "light", size = "lg") {
   const dpr = Math.max(1, Math.round(window.devicePixelRatio || 1));
-  const w = 900;
-  const h = 1200;
-  canvas.width = w * dpr;
-  canvas.height = h * dpr;
-  canvas.style.width = w + "px";
-  canvas.style.height = h + "px";
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const baseW = 900;
+  const baseH = 1200;
+  const scale = getSizeScale(size);
+  const w = baseW;
+  const h = baseH;
+  canvas.width = Math.round(baseW * scale * dpr);
+  canvas.height = Math.round(baseH * scale * dpr);
+  canvas.style.width = Math.round(baseW * scale) + "px";
+  canvas.style.height = Math.round(baseH * scale) + "px";
+  ctx.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
 
   const plans = getPlans();
 
@@ -333,12 +444,11 @@ function drawSennik(name, price, theme = "light") {
   ctx.fillRect(60, dividerY, 780, 6);
 
   ctx.fillStyle = textPrimary;
-  ctx.font = "900 76px Arial";
-  const titleLines = wrapText(name, 60, dividerY + 104, 780, 84, 2);
+  const titleBlock = drawFittedWrappedText(name, 60, dividerY + 104, 780, 66, 36, 3, textPrimary);
 
-  ctx.font = "900 72px Arial";
+  ctx.font = "700 58px Arial";
   ctx.fillStyle = textSecondary;
-  const priceY = dividerY + 104 + titleLines * 84 + 26;
+  const priceY = dividerY + 104 + titleBlock.lines * titleBlock.lineHeight + 26;
   ctx.fillText(formatUzs(price), 60, priceY);
 
   const tableTop = priceY + 135;
@@ -405,6 +515,7 @@ function drawSennik(name, price, theme = "light") {
 /* GENERATE */
 function generateAll() {
   currentTheme = getSelectedTheme();
+  const currentSize = getSelectedSize();
   previewManualEl.innerHTML = "";
   previewExcelEl.innerHTML = "";
   manualImgs = [];
@@ -427,14 +538,14 @@ function generateAll() {
     row.style.outline = isValid ? "" : "2px solid #fecaca";
     if (!isValid) continue;
 
-    const img = drawSennik(name, price, currentTheme);
-    manualImgs.push({ name, price, img, theme: currentTheme });
+    const img = drawSennik(name, price, currentTheme, currentSize);
+    manualImgs.push({ name, price, img, theme: currentTheme, size: currentSize });
     previewManualEl.appendChild(makePreviewCard(name, img));
   }
 
   for (const r of excelData) {
-    const img = drawSennik(r.name, r.price, currentTheme);
-    excelImgs.push({ name: r.name, price: r.price, img, theme: currentTheme });
+    const img = drawSennik(r.name, r.price, currentTheme, currentSize);
+    excelImgs.push({ name: r.name, price: r.price, img, theme: currentTheme, size: currentSize });
     previewExcelEl.appendChild(makePreviewCard(r.name, img));
   }
 
@@ -523,8 +634,9 @@ async function downloadPdfAll() {
   const pageW = 210;
   const pageH = 297;
   const margin = 1;
-  const cols = 3;
-  const rows = 3;
+  const pdfSize = getSelectedSize();
+  const cols = pdfSize === "sm" ? 5 : pdfSize === "md" ? 4 : 3;
+  const rows = pdfSize === "sm" ? 5 : pdfSize === "md" ? 4 : 3;
   const cellW = (pageW - margin * 2) / cols;
   const cellH = (pageH - margin * 2) / rows;
   const pad = 0.25;
@@ -566,4 +678,5 @@ async function downloadPdfAll() {
 }
 
 initThemeToggle();
+initSizeToggle();
 setButtonsEnabled();
