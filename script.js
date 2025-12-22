@@ -17,10 +17,30 @@ let excelImgs = [];
 let excelData = [];
 let currentTheme = "light";
 
+function truncateToDecimals(n, decimals) {
+  const f = Math.pow(10, decimals);
+  const v = n * f;
+  const t = v < 0 ? Math.ceil(v) : Math.floor(v);
+  return t / f;
+}
+
+function formatSpacedNumber(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "";
+  const t = truncateToDecimals(n, 1);
+  const s = Math.abs(t).toFixed(1);
+  const parts = s.split(".");
+  const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  const fracPart = parts[1] || "0";
+  const sign = t < 0 ? "-" : "";
+  if (fracPart === "0") return `${sign}${intPart}`;
+  return `${sign}${intPart}.${fracPart}`;
+}
+
 const formatUzs = value => {
   const n = Number(value);
   if (!Number.isFinite(n)) return "";
-  return String(Math.round(n)) + " so'm";
+  return formatSpacedNumber(n) + " so'm";
 };
 
 const parsePrice = raw => {
@@ -126,7 +146,7 @@ function getPlans() {
 
 function calcMonthly(price, months, percent) {
   const total = price * (1 + percent / 100);
-  return Math.ceil(total / months);
+  return total / months;
 }
 
 function wrapText(text, x, y, maxWidth, lineHeight, maxLines) {
@@ -238,9 +258,56 @@ function roundRect(x, y, w, h, r) {
 }
 
 function formatNumber(value) {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return "";
-  return String(Math.round(n));
+  return formatSpacedNumber(value);
+}
+
+function initPlansEditor() {
+  const plansRoot = document.querySelector(".plans");
+  const addBtn = document.getElementById("addPlanRow");
+  if (!plansRoot) return;
+
+  const bindDeleteButtons = () => {
+    const rows = Array.from(plansRoot.querySelectorAll(".plan-row"));
+    rows.forEach(row => {
+      const del = row.querySelector(".plan-del");
+      if (!del) return;
+      del.onclick = () => {
+        const allRows = Array.from(plansRoot.querySelectorAll(".plan-row"));
+        if (allRows.length <= 1) return;
+        row.remove();
+        const hasPreview = (manualImgs && manualImgs.length) || (excelImgs && excelImgs.length);
+        if (hasPreview) generateAll();
+      };
+    });
+  };
+
+  const addRow = (months = "", percent = "") => {
+    const row = document.createElement("div");
+    row.className = "plan-row";
+    row.innerHTML = `<input class="months" value="${months}" inputmode="numeric"><span>oy</span><input class="percent" value="${percent}" inputmode="decimal"><span>%</span><button type="button" class="plan-del" aria-label="O'chirish">✕</button>`;
+    plansRoot.appendChild(row);
+    bindDeleteButtons();
+  };
+
+  if (addBtn) {
+    addBtn.onclick = () => {
+      addRow("", "");
+      const hasPreview = (manualImgs && manualImgs.length) || (excelImgs && excelImgs.length);
+      if (hasPreview) generateAll();
+    };
+  }
+
+  // Upgrade existing static rows (if any): add delete buttons
+  Array.from(plansRoot.querySelectorAll(".plan-row")).forEach(row => {
+    if (row.querySelector(".plan-del")) return;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "plan-del";
+    btn.setAttribute("aria-label", "O'chirish");
+    btn.textContent = "✕";
+    row.appendChild(btn);
+  });
+  bindDeleteButtons();
 }
 
 function drawRightFittedText(text, xRight, y, maxWidth, baseFont, minFont, fillStyle) {
@@ -679,4 +746,5 @@ async function downloadPdfAll() {
 
 initThemeToggle();
 initSizeToggle();
+initPlansEditor();
 setButtonsEnabled();
