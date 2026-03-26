@@ -12,6 +12,14 @@ const sizeValueEl = document.getElementById("sizeValue");
 
 let logoImg = null;
 let logoObjectUrl = null;
+
+// Load default logo
+const defaultLogo = new Image();
+defaultLogo.onload = () => {
+  logoImg = defaultLogo;
+  if (logoPreviewEl) logoPreviewEl.src = "logo.png";
+};
+defaultLogo.src = "logo.png";
 let manualImgs = [];
 let excelImgs = [];
 let excelData = [];
