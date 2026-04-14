@@ -386,7 +386,20 @@ function drawSennik({ canvas, companyName, name, price, theme, size, plans, layo
 
   let logoBottomY = 60; // Logo drawing disabled by request
 
-  // Company name drawing disabled by request
+  if (companyName.trim()) {
+    drawCenteredFittedText(
+      ctx,
+      companyName.trim(),
+      layout.shopName.x,
+      layout.shopName.y,
+      layout.shopName.maxW,
+      layout.shopName.font || 62,
+      18,
+      layout.shopName.color || textPrimary,
+      String(layout.shopName.weight || 800),
+      layout.shopName.fontFamily || 'Arial'
+    );
+  }
 
   const prodLineH = Math.round((layout.product.font || 66) * 1.1);
   const prodBoxH = Math.max(40, Math.round(layout.product.boxH || prodLineH * 3));
@@ -583,7 +596,7 @@ export default function App() {
   }, [layout, validPlans.length]);
 
   const fieldBoxes = useMemo(() => {
-    const statics = ['product', 'price'].map(field => ({
+    const statics = ['shopName', 'product', 'price'].map(field => ({
       field,
       ...fieldBoxFromLayout(layout, field, validPlans.length)
     }));
@@ -636,6 +649,7 @@ export default function App() {
     if (!hasSelection) return 'product';
     if (selectionKind === 'rowMonths') return 'tableMonths';
     if (selectionKind === 'rowPrice') return 'tablePrice';
+    if (selectionKind === 'shopName') return 'shopName';
     if (selectionKind === 'price') return 'price';
     if (selectionKind === 'product') return 'product';
     // fallback: map by selectedField
@@ -643,6 +657,8 @@ export default function App() {
       ? 'tableMonths'
       : selectedField.startsWith('rowPrice')
         ? 'tablePrice'
+        : selectedField === 'shopName'
+          ? 'shopName'
         : selectedField === 'price'
           ? 'price'
           : 'product';
@@ -691,6 +707,12 @@ export default function App() {
       else if (prop === 'h') updateLayoutField('product', 'boxH', v, 20);
       else if (prop === 'x') updateLayoutField('product', 'x', v);
       else if (prop === 'y') updateLayoutField('product', 'y', v);
+      return;
+    }
+    if (selectionKind === 'shopName') {
+      if (prop === 'w') updateLayoutField('shopName', 'maxW', v, 1);
+      else if (prop === 'x') updateLayoutField('shopName', 'x', v);
+      else if (prop === 'y') updateLayoutField('shopName', 'y', v);
       return;
     }
     if (selectionKind === 'price') {
@@ -1824,6 +1846,7 @@ export default function App() {
                               <div className="inspector-label">X</div>
                               <input type="number" value={(() => {
                                 if (selectionKind === 'rowMonths' || selectionKind === 'rowPrice') return '';
+                                if (selectionKind === 'shopName') return layout.shopName.x;
                                 if (selectionKind === 'product') return layout.product.x;
                                 if (selectionKind === 'price') return layout.price.x;
                                 return '';
@@ -1833,6 +1856,7 @@ export default function App() {
                               <div className="inspector-label">Y</div>
                               <input type="number" value={(() => {
                                 if (selectionKind === 'rowMonths' || selectionKind === 'rowPrice') return '';
+                                if (selectionKind === 'shopName') return layout.shopName.y;
                                 if (selectionKind === 'product') return layout.product.y;
                                 if (selectionKind === 'price') return layout.price.y;
                                 return '';
@@ -1851,7 +1875,7 @@ export default function App() {
                           <div className="inspector-row">
                             <div className="inspector-group">
                               <div className="inspector-label">W</div>
-                              <input type="number" placeholder={selectionKind.startsWith('row') ? '—' : ''} value={selectionKind === 'product' ? layout.product.maxW : ''} onChange={e => updateSelectionBoxNumber('w', e.target.value, 1)} />
+                              <input type="number" placeholder={selectionKind.startsWith('row') ? '—' : ''} value={selectionKind === 'product' ? layout.product.maxW : selectionKind === 'shopName' ? layout.shopName.maxW : ''} onChange={e => updateSelectionBoxNumber('w', e.target.value, 1)} />
                             </div>
                             <div className="inspector-group">
                               <div className="inspector-label">H</div>
