@@ -333,6 +333,27 @@ function loadImage(url) {
   });
 }
 
+function drawCoverImage(ctx, img, x, y, w, h) {
+  const imgAspect = img.width / img.height;
+  const boxAspect = w / h;
+  let drawW;
+  let drawH;
+  let dx = x;
+  let dy = y;
+
+  if (imgAspect > boxAspect) {
+    drawH = h;
+    drawW = h * imgAspect;
+    dx = x - (drawW - w) / 2;
+  } else {
+    drawW = w;
+    drawH = w / imgAspect;
+    dy = y - (drawH - h) / 2;
+  }
+
+  ctx.drawImage(img, dx, dy, drawW, drawH);
+}
+
 function drawSennik({ canvas, companyName, name, price, theme, size, plans, layout, rowsBoxes, logoImage, templateImage }) {
   const ctx = canvas.getContext('2d');
   const dpr = Math.max(1, Math.round(window.devicePixelRatio || 1));
@@ -347,17 +368,15 @@ function drawSennik({ canvas, companyName, name, price, theme, size, plans, layo
 
   const isDark = theme === 'dark';
   const outerBg = isDark ? '#000000' : '#f3f4f6';
-  const accent = isDark ? '#fbbf24' : '#4f46e5';
   const textPrimary = isDark ? '#fbbf24' : '#111827';
   const textSecondary = isDark ? '#f59e0b' : '#0f172a';
 
   ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = outerBg;
+  ctx.fillRect(0, 0, w, h);
   if (templateImage) {
-    ctx.drawImage(templateImage, 0, 0, w, h);
+    drawCoverImage(ctx, templateImage, 0, 0, w, h);
   } else {
-    ctx.fillStyle = outerBg;
-    ctx.fillRect(0, 0, w, h);
-
     ctx.shadowColor = isDark ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.15)';
     ctx.shadowBlur = isDark ? 18 : 25;
     ctx.fillStyle = isDark ? '#0b0b0f' : '#ffffff';
@@ -368,10 +387,6 @@ function drawSennik({ canvas, companyName, name, price, theme, size, plans, layo
   let logoBottomY = 60; // Logo drawing disabled by request
 
   // Company name drawing disabled by request
-
-  const dividerY = Math.max(layout.price.dividerY, logoBottomY + 18);
-  ctx.fillStyle = accent;
-  ctx.fillRect(layout.product.x, dividerY, layout.product.maxW, 6);
 
   const prodLineH = Math.round((layout.product.font || 66) * 1.1);
   const prodBoxH = Math.max(40, Math.round(layout.product.boxH || prodLineH * 3));
@@ -535,6 +550,8 @@ export default function App() {
   const [excelFileName, setExcelFileName] = useState('');
   const [isGeneratingAuto, setIsGeneratingAuto] = useState(false);
   const [isGeneratingManual, setIsGeneratingManual] = useState(false);
+  const [syncRowFields, setSyncRowFields] = useState(true);
+  const [showExcelEditor, setShowExcelEditor] = useState(false);
 
   useEffect(() => () => {
     if (logoUrl) URL.revokeObjectURL(logoUrl);
@@ -649,13 +666,23 @@ export default function App() {
     });
   };
 
+  const getSyncedRowKeys = key => {
+    if (!syncRowFields) return [key];
+    if (key.startsWith('rowMonths')) return rowsDerived.map((_, idx) => `rowMonths:${idx}`);
+    if (key.startsWith('rowPrice')) return rowsDerived.map((_, idx) => `rowPrice:${idx}`);
+    return [key];
+  };
+
   const updateSelectionBoxNumber = (prop, value, min = null) => {
     const n = Number(value);
     if (!Number.isFinite(n)) return;
     const v = min !== null ? Math.max(min, n) : n;
 
     if (selectionKind === 'rowMonths' || selectionKind === 'rowPrice') {
-      selectedKeys.forEach(k => updateRowBox(k, { [prop]: v }));
+      const keys = syncRowFields
+        ? rowsDerived.map((_, idx) => `${selectionKind}:${idx}`)
+        : selectedKeys;
+      keys.forEach(k => updateRowBox(k, { [prop]: v }));
       return;
     }
 
@@ -714,6 +741,29 @@ export default function App() {
     setPlans(prev => prev.map(row => (row.id === id ? { ...row, [key]: value } : row)));
   };
 
+  const updateExcelRow = (id, key, value) => {
+    setExcelData(prev => prev.map(row => {
+      if (row.id !== id) return row;
+      if (key === 'enabled') return { ...row, enabled: Boolean(value) };
+      if (key === 'copies') {
+        const copies = Math.max(0, Number(value) || 0);
+        return { ...row, copies };
+      }
+      if (key === 'price') {
+        return { ...row, price: value };
+      }
+      return { ...row, [key]: value };
+    }));
+  };
+
+  const removeExcelRow = id => {
+    setExcelData(prev => prev.filter(row => row.id !== id));
+  };
+
+  const addExcelRow = () => {
+    setExcelData(prev => [...prev, { id: createId(), name: '', price: '', copies: 1, enabled: true }]);
+  };
+
   const onExcelChange = event => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -737,13 +787,21 @@ export default function App() {
 
         const parsed = rows
           .slice(start)
-          .map(r => ({ name: String(r[0] ?? '').trim(), price: parsePrice(r[1]) }))
+          .map(r => ({
+            id: createId(),
+            name: String(r[0] ?? '').trim(),
+            price: parsePrice(r[1]),
+            copies: 1,
+            enabled: true
+          }))
           .filter(x => x.name && Number.isFinite(x.price) && x.price > 0);
 
         setExcelData(parsed);
+        setShowExcelEditor(Boolean(parsed.length));
         setExcelError(parsed.length ? '' : "Excel faylda to'g'ri ma'lumot topilmadi (2 ustun: nomi va narxi).");
       } catch {
         setExcelData([]);
+        setShowExcelEditor(false);
         setExcelError("Excel faylni o'qib bo'lmadi. Formatni tekshiring (.xlsx).");
       }
     };
@@ -786,14 +844,32 @@ export default function App() {
     return items;
   };
 
+  const preparedExcelRows = useMemo(() => {
+    return excelData.flatMap(row => {
+      if (!row?.enabled) return [];
+      const name = String(row.name || '').trim();
+      const price = parsePrice(row.price);
+      const copies = Math.max(0, Number(row.copies) || 0);
+      if (!(name && Number.isFinite(price) && price > 0 && copies > 0)) return [];
+      return Array.from({ length: copies }, (_, idx) => ({
+        name: copies > 1 ? `${name} ${idx + 1}` : name,
+        price
+      }));
+    });
+  }, [excelData]);
+
   const generateManual = async () => {
     setIsGeneratingManual(true);
     const manualRows = manualProducts
       .map(row => ({ name: (row.name || '').trim(), price: parsePrice(row.price) }))
       .filter(row => row.name || Number.isFinite(row.price));
+    const manualSources = [
+      ...manualRows.filter(row => row.name && Number.isFinite(row.price) && row.price > 0),
+      ...preparedExcelRows
+    ];
 
     try {
-      const items = await generateItems(manualRows);
+      const items = await generateItems(manualSources);
       if (items) setManualImgs(items);
     } finally {
       setIsGeneratingManual(false);
@@ -803,7 +879,7 @@ export default function App() {
   const generateAutomatic = async () => {
     setIsGeneratingAuto(true);
     try {
-      const items = await generateItems(excelData);
+      const items = await generateItems(preparedExcelRows);
       if (items) setExcelImgs(items);
     } finally {
       setIsGeneratingAuto(false);
@@ -901,9 +977,21 @@ export default function App() {
         })()
       : fieldBoxFromLayout(layout, field, validPlans.length);
 
+    const groupFields = field.startsWith('row') && syncRowFields ? getSyncedRowKeys(field) : [field];
+    const groupStartBoxes = groupFields.map(key => {
+      const [kind, idxStr] = key.split(':');
+      const idx = Number(idxStr);
+      const r = rowsDerived[idx];
+      if (!r) return { field: key, x: box.x, y: box.y };
+      const target = kind === 'rowMonths' ? r.months : r.price;
+      return { field: key, x: target.x, y: target.y };
+    });
+
     dragRef.current = {
       mode: 'move',
       field,
+      groupFields,
+      groupStartBoxes,
       startClientX: event.clientX,
       startClientY: event.clientY,
       startX: box.x,
@@ -932,7 +1020,9 @@ export default function App() {
 
     // determine group for multi-resize (only same-kind fields)
     let groupFields = [field];
-    if (multiSelected.includes(field)) {
+    if (field.startsWith('row') && syncRowFields) {
+      groupFields = getSyncedRowKeys(field);
+    } else if (multiSelected.includes(field)) {
       if (field.startsWith('rowMonths')) groupFields = multiSelected.filter(f => f.startsWith('rowMonths'));
       else if (field.startsWith('rowPrice')) groupFields = multiSelected.filter(f => f.startsWith('rowPrice'));
       else if (field === 'product') groupFields = multiSelected.includes('product') ? ['product'] : ['product'];
@@ -966,6 +1056,30 @@ export default function App() {
         const nextY = Math.max(0, Math.round(drag.startY + dy));
 
         setLayout(prev => {
+          if (Array.isArray(drag.groupFields) && drag.groupFields.length > 1 && drag.field.startsWith('row')) {
+            const rows = Array.isArray(prev.rows) ? [...prev.rows] : [];
+            drag.groupStartBoxes.forEach(item => {
+              const [kind, idxStr] = item.field.split(':');
+              const idx = Number(idxStr);
+              while (rows.length <= idx) {
+                rows.push({
+                  months: { x: prev.tableMonths.x, y: prev.table.y + rows.length * prev.table.rowH, w: prev.tableMonths.w, h: prev.table.rowH },
+                  price: { x: prev.tablePrice.x, y: prev.table.y + rows.length * prev.table.rowH, w: prev.tablePrice.w, h: prev.table.rowH }
+                });
+              }
+              const targetKey = kind === 'rowMonths' ? 'months' : 'price';
+              rows[idx] = {
+                ...rows[idx],
+                [targetKey]: {
+                  ...rows[idx][targetKey],
+                  x: Math.max(0, Math.round(item.x + dx)),
+                  y: Math.max(0, Math.round(item.y + dy))
+                }
+              };
+            });
+            return { ...prev, rows };
+          }
+
           if (drag.field === 'shopName') return { ...prev, shopName: { ...prev.shopName, x: nextX, y: nextY + 56 } };
           if (drag.field === 'logo') return { ...prev, logo: { ...prev.logo, x: nextX, y: nextY } };
           if (drag.field === 'product') {
@@ -1115,13 +1229,81 @@ export default function App() {
     </>
   );
 
+  const renderExcelEditor = contextLabel => (
+    showExcelEditor && excelData.length ? (
+      <div className="card excel-editor-card">
+        <div className="section-header">
+          <div>
+            <h3>Excelni Edit Qilish</h3>
+            <p>{contextLabel} uchun Excel qatorlarini web jadval ichida tahrir qiling.</p>
+          </div>
+          <div className="excel-editor-actions">
+            <button type="button" className="ghost-btn" onClick={addExcelRow}>
+              <Icon name="plus" size={16} />
+              <span>Qator qo'shish</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="excel-sheet">
+          <div className="excel-sheet-head">
+            <div>Chiqarish</div>
+            <div>Nomi</div>
+            <div>Narxi</div>
+            <div>Dona</div>
+            <div>O'chirish</div>
+          </div>
+
+          <div className="excel-sheet-body">
+            {excelData.map(row => (
+              <div className="excel-sheet-row" key={row.id}>
+                <div className="excel-cell excel-toggle-cell">
+                  <button
+                    type="button"
+                    className={`excel-mini-toggle ${row.enabled ? 'is-on' : ''}`}
+                    onClick={() => updateExcelRow(row.id, 'enabled', !row.enabled)}
+                    aria-pressed={row.enabled}
+                  >
+                    <span className="toggle-knob" />
+                  </button>
+                </div>
+                <div className="excel-cell">
+                  <input value={row.name} onChange={e => updateExcelRow(row.id, 'name', e.target.value)} placeholder="Mahsulot nomi" />
+                </div>
+                <div className="excel-cell">
+                  <input value={row.price} onChange={e => updateExcelRow(row.id, 'price', e.target.value)} placeholder="Narxi" inputMode="decimal" />
+                </div>
+                <div className="excel-cell">
+                  <input value={row.copies} onChange={e => updateExcelRow(row.id, 'copies', e.target.value)} placeholder="1" inputMode="numeric" />
+                </div>
+                <div className="excel-cell excel-delete-cell">
+                  <button type="button" className="plan-del" onClick={() => removeExcelRow(row.id)}>
+                    <Icon name="trash" size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="excel-editor-summary">
+          <span>Aktiv qatorlar: {excelData.filter(row => row.enabled).length} ta</span>
+          <span>Jami chiqadiganlar: {preparedExcelRows.length} ta</span>
+        </div>
+      </div>
+    ) : null
+  );
+
   return (
     <div className="container">
       <div className="app-shell">
         <aside className="sidebar">
           <div className="sidebar-brand">
             <div className="sidebar-kicker">Sennik</div>
-            <h1>Generator Pro</h1>
+            <div className="brand-row">
+              <img className="brand-logo" src="/logo-gradient.svg" alt="Generator Pro logo" />
+              <h1>Generator Pro</h1>
+            </div>
             <p>Default sahifa avtomatik yaratish bo‘lib ochiladi. Sidebar orqali manual bo‘limga o‘tasiz.</p>
           </div>
 
@@ -1255,11 +1437,13 @@ export default function App() {
                     <div className="success-badge"><Icon name="check" size={16} /></div>
                     <div>
                       <div className="file-name">{excelFileName}</div>
-                      <div className="file-meta">{excelData.length} rows imported and ready to generate</div>
+                      <div className="file-meta">{excelData.length} rows imported, {preparedExcelRows.length} ta chiqarishga tayyor</div>
                     </div>
                   </div>
                 ) : null}
               </div>
+
+              {renderExcelEditor('avtomatik generatsiya')}
 
               <button className={`primary primary-hero ${isGeneratingAuto ? 'is-loading' : ''}`} type="button" onClick={generateAutomatic} disabled={isGeneratingAuto}>
                 <Icon name="sparkles" size={18} />
@@ -1409,7 +1593,7 @@ export default function App() {
                 <div className="section-header">
                   <div>
                     <h3>Manual Products</h3>
-                    <p>Add products one by one for a curated invoice sheet.</p>
+                    <p>Add products one by one or combine them with Excel import below.</p>
                   </div>
                 </div>
                 {manualProducts.map(row => (
@@ -1424,6 +1608,33 @@ export default function App() {
                   <span>Add product</span>
                 </button>
               </div>
+
+              <div className="card">
+                <div className="section-header">
+                  <div>
+                    <h3>Excel Import</h3>
+                    <p>Import extra products into manual mode and generate them together with your typed products.</p>
+                  </div>
+                </div>
+                {excelError ? <div className="inline-error">{excelError}</div> : null}
+                <label className="upload-dropzone upload-dropzone-excel">
+                  <input className="sr-only" type="file" accept=".xlsx" onChange={onExcelChange} />
+                  <div className="upload-icon excel"><Icon name="excel" size={22} /></div>
+                  <div className="upload-title">Upload Excel file</div>
+                  <div className="upload-subtitle">Column 1: Product name, Column 2: Price</div>
+                </label>
+                {excelFileName ? (
+                  <div className="file-preview success">
+                    <div className="success-badge"><Icon name="check" size={16} /></div>
+                    <div>
+                      <div className="file-name">{excelFileName}</div>
+                      <div className="file-meta">{excelData.length} imported rows, {preparedExcelRows.length} ta manual generatsiyaga qo'shiladi</div>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              {renderExcelEditor('manual generatsiya')}
 
               <div className="card section-title">Shablon ustida maydon belgilash</div>
 
@@ -1455,6 +1666,21 @@ export default function App() {
                       </button>
                     </div>
                   ) : null}
+                </div>
+
+                <div className="sync-toggle-row">
+                  <div>
+                    <div className="sync-toggle-title">Sync month and price boxes</div>
+                    <div className="sync-toggle-text">When enabled, changing one row box updates all matching row boxes together.</div>
+                  </div>
+                  <button
+                    type="button"
+                    className={`toggle-switch ${syncRowFields ? 'is-on' : ''}`}
+                    onClick={() => setSyncRowFields(prev => !prev)}
+                    aria-pressed={syncRowFields}
+                  >
+                    <span className="toggle-knob" />
+                  </button>
                 </div>
 
                 <p className="hint">Drag blocks to reposition them. Use the bottom-right handle to resize fields smoothly.</p>

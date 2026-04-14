@@ -75,6 +75,19 @@ button:disabled {
   background-clip: initial;
 }
 
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.brand-logo {
+  width: 52px;
+  height: 52px;
+  flex: 0 0 auto;
+  display: block;
+}
+
 .sidebar-brand p {
   margin: 0;
   color: #475569;
@@ -522,6 +535,167 @@ button:disabled {
 
 .premium-preview-grid {
   margin-top: 8px;
+}
+
+.sync-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(244,247,255,.94));
+}
+
+.sync-toggle-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.sync-toggle-text {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.toggle-switch {
+  position: relative;
+  width: 58px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #dbe4f0;
+  transition: background .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+
+.toggle-switch.is-on {
+  background: linear-gradient(135deg, var(--brand-a), var(--brand-b));
+  border-color: transparent;
+  box-shadow: 0 10px 24px rgba(91,95,255,.22);
+}
+
+.toggle-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(15,23,42,.16);
+  transition: transform .2s ease;
+}
+
+.toggle-switch.is-on .toggle-knob {
+  transform: translateX(24px);
+}
+
+.excel-editor-card {
+  overflow: hidden;
+}
+
+.excel-editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.excel-sheet {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  overflow: hidden;
+  background: rgba(255,255,255,.92);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.9);
+}
+
+.excel-sheet-head,
+.excel-sheet-row {
+  display: grid;
+  grid-template-columns: 110px minmax(220px, 1.8fr) minmax(140px, 1fr) 100px 90px;
+  gap: 0;
+  align-items: center;
+}
+
+.excel-sheet-head {
+  background: linear-gradient(180deg, #f8fbff, #eef4ff);
+  color: #334155;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.excel-sheet-head > div,
+.excel-cell {
+  padding: 14px 16px;
+  border-right: 1px solid var(--border);
+}
+
+.excel-sheet-head > div:last-child,
+.excel-cell:last-child {
+  border-right: none;
+}
+
+.excel-sheet-row {
+  border-top: 1px solid var(--border);
+}
+
+.excel-sheet-row:first-child {
+  border-top: none;
+}
+
+.excel-sheet-row:nth-child(even) {
+  background: rgba(248,250,252,.72);
+}
+
+.excel-sheet-row input {
+  margin-top: 0;
+}
+
+.excel-toggle-cell,
+.excel-delete-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.excel-mini-toggle {
+  position: relative;
+  width: 52px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #dbe4f0;
+  transition: background .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+
+.excel-mini-toggle.is-on {
+  background: linear-gradient(135deg, var(--brand-a), var(--brand-b));
+  border-color: transparent;
+  box-shadow: 0 8px 18px rgba(91,95,255,.2);
+}
+
+.excel-mini-toggle .toggle-knob {
+  width: 22px;
+  height: 22px;
+}
+
+.excel-mini-toggle.is-on .toggle-knob {
+  transform: translateX(22px);
+}
+
+.excel-editor-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
 }
 
 @keyframes spin {
@@ -1047,6 +1221,15 @@ input:focus {
 
   .template-workspace {
     grid-template-columns: 1fr;
+  }
+
+  .excel-sheet {
+    overflow-x: auto;
+  }
+
+  .excel-sheet-head,
+  .excel-sheet-row {
+    min-width: 760px;
   }
 
   .inspector {
