@@ -1,108 +1,12 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="uz">
-<head>
-  <meta charset="UTF-8">
-  <title>Sennik Yasash</title>
-
-  <link rel="stylesheet" href="style.css">
-
-  <!-- ZIP -->
-  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-
-  <!-- EXCEL -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
-  <!-- PDF -->
-  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-</head>
-<body>
-
-<div class="container">
-  <header class="main-header">
-    <img src="logo.png" alt="Logo" class="header-logo">
-    <h1>SENNIK GENERATOR PRO</h1>
-  </header>
-
-  <!-- LOGO -->
-  <div class="card">
-    <label>Kompaniya nomi</label>
-    <input id="companyName" placeholder="SMART TECH STORE">
-
-    <label>Logo</label>
-    <div class="logo-box">
-      <input type="file" id="logoInput" accept="image/*">
-      <img id="logoPreview" src="logo.png">
-      <button onclick="removeLogo()">❌ Logo olib tashlash</button>
-    </div>
-  </div>
-
-  <!-- NASIYA -->
-  <div class="card">
-    <h3>Nasiya shartlari (hammasi uchun)</h3>
-    <div class="plans">
-      <div class="plan-row"><input class="months" value="3"><span>oy</span><input class="percent" value="15"><span>%</span></div>
-      <div class="plan-row"><input class="months" value="6"><span>oy</span><input class="percent" value="25"><span>%</span></div>
-      <div class="plan-row"><input class="months" value="9"><span>oy</span><input class="percent" value="35"><span>%</span></div>
-      <div class="plan-row"><input class="months" value="12"><span>oy</span><input class="percent" value="44"><span>%</span></div>
-    </div>
-    <button type="button" id="addPlanRow">➕ Qator qo‘shish</button>
-  </div>
-
-  <div class="card">
-    <h3>Sennik foni</h3>
-    <div class="theme-toggle" role="group" aria-label="Sennik foni">
-      <button type="button" class="theme-btn is-active" data-theme="light">Oq</button>
-      <button type="button" class="theme-btn" data-theme="dark">Qora</button>
-      <input type="hidden" id="themeValue" value="light">
-    </div>
-  </div>
-
-  <div class="card">
-    <h3>Sennik razmeri</h3>
-    <div class="size-examples" aria-hidden="true">
-      <div class="size-example is-active" data-size="lg"><span>100%</span></div>
-      <div class="size-example" data-size="md"><span>60%</span></div>
-      <div class="size-example" data-size="sm"><span>40%</span></div>
-    </div>
-    <div class="size-toggle" role="group" aria-label="Sennik razmeri">
-      <button type="button" class="size-btn is-active" data-size="lg">Katta</button>
-      <button type="button" class="size-btn" data-size="md">O'rta</button>
-      <button type="button" class="size-btn" data-size="sm">Kichik</button>
-      <input type="hidden" id="sizeValue" value="lg">
-    </div>
-  </div>
-
-  <!-- MANUAL -->
-  <div class="card">
-    <h3>✍️ Qo‘lda mahsulot kiritish</h3>
-    <div id="manualProducts"></div>
-    <button onclick="addManual()">➕ Qo‘shish</button>
-  </div>
-
-  <!-- EXCEL -->
-  <div class="card">
-    <h3>📊 Excel orqali import</h3>
-    <input type="file" id="excelInput" accept=".xlsx">
-    <p class="hint">1-ustun: mahsulot nomi, 2-ustun: narxi</p>
-  </div>
-
-  <button class="primary" onclick="generateAll()">🎨 Senniklarni yaratish</button>
-
-  <!-- PREVIEW -->
-  <h3>🖼 Preview (qo‘lda)</h3>
-  <div id="previewManual" class="preview-grid"></div>
-
-  <h3>🖼 Preview (Excel)</h3>
-  <div id="previewExcel" class="preview-grid"></div>
-
-  <button class="primary" onclick="downloadManualZip()">📦 Manual ZIP</button>
-  <button class="primary" onclick="downloadExcelZip()">📦 Excel ZIP</button>
-  <button class="primary" onclick="downloadAllZip()">📦 Hammasini ZIP</button>
-  <button class="primary" onclick="downloadPdfAll()">📄 Hammasini PDF (A4 3×3)</button>
-
-  <canvas id="canvas" width="900" height="600" hidden></canvas>
-</div>
-
-<script src="script.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sennik Studio</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
 </html>
