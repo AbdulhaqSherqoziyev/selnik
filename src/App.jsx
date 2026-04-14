@@ -29,6 +29,98 @@ const fieldTitles = {
 
 const createId = () => `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
+function Icon({ name, size = 18, stroke = 1.9 }) {
+  const props = {
+    width: size,
+    height: size,
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: stroke,
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    'aria-hidden': true
+  };
+
+  if (name === 'upload') {
+    return (
+      <svg {...props}>
+        <path d="M12 16V5" />
+        <path d="m7 10 5-5 5 5" />
+        <path d="M20 16.5a3.5 3.5 0 0 1-3.5 3.5h-9A3.5 3.5 0 0 1 4 16.5" />
+      </svg>
+    );
+  }
+  if (name === 'excel') {
+    return (
+      <svg {...props}>
+        <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+        <path d="M14 3v5h5" />
+        <path d="m9 11 4 6" />
+        <path d="m13 11-4 6" />
+      </svg>
+    );
+  }
+  if (name === 'plus') {
+    return (
+      <svg {...props}>
+        <path d="M12 5v14" />
+        <path d="M5 12h14" />
+      </svg>
+    );
+  }
+  if (name === 'trash') {
+    return (
+      <svg {...props}>
+        <path d="M3 6h18" />
+        <path d="M8 6V4h8v2" />
+        <path d="m19 6-1 14H6L5 6" />
+      </svg>
+    );
+  }
+  if (name === 'check') {
+    return (
+      <svg {...props}>
+        <path d="m5 12 4 4L19 6" />
+      </svg>
+    );
+  }
+  if (name === 'zip') {
+    return (
+      <svg {...props}>
+        <path d="M8 3h8l5 5v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
+        <path d="M13 3v5h5" />
+        <path d="M10 10h4" />
+        <path d="M10 14h4" />
+        <path d="M10 18h4" />
+      </svg>
+    );
+  }
+  if (name === 'pdf') {
+    return (
+      <svg {...props}>
+        <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+        <path d="M14 3v5h5" />
+        <path d="M8.5 15h2a1.5 1.5 0 0 0 0-3h-2V18" />
+        <path d="M13 18v-6h1.5a2 2 0 0 1 0 4H13" />
+      </svg>
+    );
+  }
+  if (name === 'sparkles') {
+    return (
+      <svg {...props}>
+        <path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8z" />
+        <path d="M19 14l.9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9z" />
+      </svg>
+    );
+  }
+  return (
+    <svg {...props}>
+      <circle cx="12" cy="12" r="8" />
+    </svg>
+  );
+}
+
 function truncateToDecimals(n, decimals) {
   const f = Math.pow(10, decimals);
   const v = n * f;
@@ -424,22 +516,25 @@ export default function App() {
   const [manualProducts, setManualProducts] = useState([{ id: createId(), name: '', price: '' }]);
   const [plans, setPlans] = useState([
     { id: createId(), months: '3', percent: '15' },
-    { id: createId(), months: '6', percent: '25' },
-    { id: createId(), months: '9', percent: '35' },
-    { id: createId(), months: '12', percent: '44' }
   ]);
-  const [excelData, setExcelData] = useState([]);
-  const [excelError, setExcelError] = useState('');
-  const [planError, setPlanError] = useState('');
-
   const [logoUrl, setLogoUrl] = useState('');
   const [templateUrl, setTemplateUrl] = useState('');
   const [layout, setLayout] = useState(defaultLayout);
   const [selectedField, setSelectedField] = useState('product');
   const [multiSelected, setMultiSelected] = useState([]); // array of field keys selected via right-click
+  const [inspectorTab, setInspectorTab] = useState('text');
+  const [activePage, setActivePage] = useState('auto');
 
   const [manualImgs, setManualImgs] = useState([]);
   const [excelImgs, setExcelImgs] = useState([]);
+  const [excelData, setExcelData] = useState([]);
+  const [excelError, setExcelError] = useState('');
+  const [planError, setPlanError] = useState('');
+  const [logoFileName, setLogoFileName] = useState('');
+  const [templateFileName, setTemplateFileName] = useState('');
+  const [excelFileName, setExcelFileName] = useState('');
+  const [isGeneratingAuto, setIsGeneratingAuto] = useState(false);
+  const [isGeneratingManual, setIsGeneratingManual] = useState(false);
 
   useEffect(() => () => {
     if (logoUrl) URL.revokeObjectURL(logoUrl);
@@ -497,33 +592,106 @@ export default function App() {
   const updateLayoutColor = (field, value) => {
     setLayout(prev => ({
       ...prev,
-      [field]: { ...prev[field], color: String(value) }
+      [field]: { ...prev[field], color: value }
     }));
   };
 
   const updateLayoutString = (field, key, value) => {
     setLayout(prev => ({
       ...prev,
-      [field]: { ...prev[field], [key]: String(value) }
+      [field]: { ...prev[field], [key]: value }
     }));
   };
 
-  const onUploadImage = (event, setter, previousUrl) => {
+  const selectedKeys = multiSelected.length ? multiSelected : (selectedField ? [selectedField] : []);
+  const hasSelection = selectedKeys.length > 0;
+  const selectionKind = useMemo(() => {
+    if (!selectedKeys.length) return 'none';
+    const allMonths = selectedKeys.every(k => k.startsWith('rowMonths'));
+    const allPrice = selectedKeys.every(k => k.startsWith('rowPrice'));
+    if (allMonths) return 'rowMonths';
+    if (allPrice) return 'rowPrice';
+    if (selectedKeys.length === 1) return selectedKeys[0];
+    return 'mixed';
+  }, [selectedKeys]);
+
+  const styleTarget = useMemo(() => {
+    if (!hasSelection) return 'product';
+    if (selectionKind === 'rowMonths') return 'tableMonths';
+    if (selectionKind === 'rowPrice') return 'tablePrice';
+    if (selectionKind === 'price') return 'price';
+    if (selectionKind === 'product') return 'product';
+    // fallback: map by selectedField
+    return selectedField.startsWith('rowMonths')
+      ? 'tableMonths'
+      : selectedField.startsWith('rowPrice')
+        ? 'tablePrice'
+        : selectedField === 'price'
+          ? 'price'
+          : 'product';
+  }, [hasSelection, selectionKind, selectedField]);
+
+  const updateRowBox = (key, patch) => {
+    if (!key.startsWith('row')) return;
+    const [kind, idxStr] = key.split(':');
+    const idx = Number(idxStr);
+    setLayout(prev => {
+      const rowsArr = Array.isArray(prev.rows) ? [...prev.rows] : [];
+      while (rowsArr.length <= idx) {
+        rowsArr.push({
+          months: { x: prev.tableMonths.x, y: prev.table.y + rowsArr.length * prev.table.rowH, w: prev.tableMonths.w, h: prev.table.rowH },
+          price: { x: prev.tablePrice.x, y: prev.table.y + rowsArr.length * prev.table.rowH, w: prev.tablePrice.w, h: prev.table.rowH }
+        });
+      }
+      const targetKey = kind === 'rowMonths' ? 'months' : 'price';
+      rowsArr[idx] = { ...rowsArr[idx], [targetKey]: { ...rowsArr[idx][targetKey], ...patch } };
+      return { ...prev, rows: rowsArr };
+    });
+  };
+
+  const updateSelectionBoxNumber = (prop, value, min = null) => {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return;
+    const v = min !== null ? Math.max(min, n) : n;
+
+    if (selectionKind === 'rowMonths' || selectionKind === 'rowPrice') {
+      selectedKeys.forEach(k => updateRowBox(k, { [prop]: v }));
+      return;
+    }
+
+    if (selectionKind === 'product') {
+      if (prop === 'w') updateLayoutField('product', 'maxW', v, 1);
+      else if (prop === 'h') updateLayoutField('product', 'boxH', v, 20);
+      else if (prop === 'x') updateLayoutField('product', 'x', v);
+      else if (prop === 'y') updateLayoutField('product', 'y', v);
+      return;
+    }
+    if (selectionKind === 'price') {
+      if (prop === 'x') updateLayoutField('price', 'x', v);
+      else if (prop === 'y') updateLayoutField('price', 'y', v);
+      return;
+    }
+  };
+
+  const onUploadImage = (event, setter, previousUrl, setFileName) => {
     const file = event.target.files?.[0];
     if (!file) return;
     if (previousUrl) URL.revokeObjectURL(previousUrl);
     setter(URL.createObjectURL(file));
+    if (setFileName) setFileName(file.name);
     event.target.value = '';
   };
 
   const removeLogo = () => {
     if (logoUrl) URL.revokeObjectURL(logoUrl);
     setLogoUrl('');
+    setLogoFileName('');
   };
 
   const removeTemplate = () => {
     if (templateUrl) URL.revokeObjectURL(templateUrl);
     setTemplateUrl('');
+    setTemplateFileName('');
   };
 
   const addManual = () => setManualProducts(prev => [...prev, { id: createId(), name: '', price: '' }]);
@@ -549,6 +717,7 @@ export default function App() {
   const onExcelChange = event => {
     const file = event.target.files?.[0];
     if (!file) return;
+    setExcelFileName(file.name);
 
     const reader = new FileReader();
     reader.onload = evt => {
@@ -582,23 +751,21 @@ export default function App() {
     event.target.value = '';
   };
 
-  const generateAll = async () => {
+  const generateItems = async rows => {
     if (!validPlans.length) {
       setPlanError("Nasiya shartlarini to'g'ri kiriting (oy > 0, foiz >= 0).");
-      return;
+      return null;
     }
     setPlanError('');
 
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) return null;
 
     const [logoImage, templateImage] = await Promise.all([loadImage(logoUrl), loadImage(templateUrl)]);
-
-    const manual = [];
-    for (const row of manualProducts) {
+    const items = [];
+    for (const row of rows) {
       const name = (row.name || '').trim();
-      const price = parsePrice(row.price);
-      if (!name && !row.price) continue;
+      const price = Number(row.price);
       if (!(name && Number.isFinite(price) && price > 0)) continue;
 
       const img = drawSennik({
@@ -614,29 +781,33 @@ export default function App() {
         logoImage,
         templateImage
       });
-      manual.push({ name, price, img, theme, size });
+      items.push({ name, price, img, theme, size });
     }
+    return items;
+  };
 
-    const excel = [];
-    for (const row of excelData) {
-      const img = drawSennik({
-        canvas,
-        companyName,
-        name: row.name,
-        price: row.price,
-        theme,
-        size,
-        plans: validPlans,
-        layout,
-        rowsBoxes: rowsDerived,
-        logoImage,
-        templateImage
-      });
-      excel.push({ name: row.name, price: row.price, img, theme, size });
+  const generateManual = async () => {
+    setIsGeneratingManual(true);
+    const manualRows = manualProducts
+      .map(row => ({ name: (row.name || '').trim(), price: parsePrice(row.price) }))
+      .filter(row => row.name || Number.isFinite(row.price));
+
+    try {
+      const items = await generateItems(manualRows);
+      if (items) setManualImgs(items);
+    } finally {
+      setIsGeneratingManual(false);
     }
+  };
 
-    setManualImgs(manual);
-    setExcelImgs(excel);
+  const generateAutomatic = async () => {
+    setIsGeneratingAuto(true);
+    try {
+      const items = await generateItems(excelData);
+      if (items) setExcelImgs(items);
+    } finally {
+      setIsGeneratingAuto(false);
+    }
   };
 
   const buildUniqueZipNames = list => {
@@ -669,8 +840,7 @@ export default function App() {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
-  const downloadPdfAll = () => {
-    const list = [...manualImgs, ...excelImgs];
+  const downloadPdf = (list, fileName) => {
     if (!list.length) return;
 
     const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
@@ -713,7 +883,7 @@ export default function App() {
       doc.addImage(item.img, 'PNG', dx, dy, drawW, drawH);
     }
 
-    doc.save('barcha_senniklar.pdf');
+    doc.save(fileName);
   };
 
   const onFieldDragStart = (event, field) => {
@@ -911,329 +1081,602 @@ export default function App() {
     };
   }, [layout, validPlans.length]);
 
+  const renderPreviewSection = (title, items) => (
+    <>
+      <div className="section-header">
+        <div>
+          <h3>{title}</h3>
+          <p>Generated sheets appear here with instant download actions.</p>
+        </div>
+      </div>
+      <div className="preview-grid premium-preview-grid">
+        {items.map(item => {
+          const safe = safeFileName(item.name) || 'sennik';
+          return (
+            <div className="preview-card" key={`${safe}_${item.price}`}>
+              <div className="preview-card-top">
+                <div>
+                  <div className="preview-name">{item.name}</div>
+                  <div className="preview-meta">{formatUzs(item.price)}</div>
+                </div>
+                <div className={`preview-badge ${item.theme === 'dark' ? 'is-dark' : ''}`}>{item.size.toUpperCase()}</div>
+              </div>
+              <img src={item.img} alt={safe} />
+              <div className="preview-actions">
+                <a className="secondary" href={item.img} download={`${safe}.png`}>
+                  <Icon name="upload" size={16} />
+                  <span>Download PNG</span>
+                </a>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+
   return (
     <div className="container">
-      <h1>🧾 SENNIK GENERATOR PRO (React)</h1>
-
-      <div className="card section-title">1) Ma'lumot va generatsiya</div>
-
-      <div className="card">
-        <label>Kompaniya nomi</label>
-        <input value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="SMART TECH STORE" />
-
-        <label>Logo</label>
-        <div className="logo-box">
-          <input type="file" accept="image/*" onChange={e => onUploadImage(e, setLogoUrl, logoUrl)} />
-          {logoUrl ? <img src={logoUrl} alt="Logo" /> : null}
-          <button type="button" onClick={removeLogo}>❌ Logo olib tashlash</button>
-        </div>
-      </div>
-
-      <div className="card">
-        <h3>Shrift va rang</h3>
-        <div className="layout-sections">
-          <div className="layout-section">
-            <h4>Mahsulot nomi</h4>
-            <div className="layout-grid">
-              <input type="number" value={layout.product.font} onChange={e => updateLayoutField('product', 'font', e.target.value, 8)} />
-              <input type="color" value={layout.product.color || '#111827'} onChange={e => updateLayoutColor('product', e.target.value)} />
-            </div>
+      <div className="app-shell">
+        <aside className="sidebar">
+          <div className="sidebar-brand">
+            <div className="sidebar-kicker">Sennik</div>
+            <h1>Generator Pro</h1>
+            <p>Default sahifa avtomatik yaratish bo‘lib ochiladi. Sidebar orqali manual bo‘limga o‘tasiz.</p>
           </div>
 
-          <div className="layout-section">
-            <h4>Asl narx</h4>
-            <div className="layout-grid">
-              <input type="number" value={layout.price.font} onChange={e => updateLayoutField('price', 'font', e.target.value, 8)} />
-              <input type="color" value={layout.price.color || '#0f172a'} onChange={e => updateLayoutColor('price', e.target.value)} />
-            </div>
+          <div className="sidebar-nav">
+            <button type="button" className={`sidebar-link ${activePage === 'auto' ? 'is-active' : ''}`} onClick={() => setActivePage('auto')}>
+              <span>Avtomatik yaratish</span>
+              <small>Excel asosida senniklar</small>
+            </button>
+            <button type="button" className={`sidebar-link ${activePage === 'manual' ? 'is-active' : ''}`} onClick={() => setActivePage('manual')}>
+              <span>Manual yaratish</span>
+              <small>Rasm va qo‘lda kiritish</small>
+            </button>
           </div>
+        </aside>
 
-          <div className="layout-section">
-            <h4>Qator — Oylar</h4>
-            <div className="layout-grid">
-              <input type="number" value={layout.tableMonths.font} onChange={e => updateLayoutField('tableMonths', 'font', e.target.value, 8)} />
-              <input type="color" value={layout.tableMonths.color || '#111827'} onChange={e => updateLayoutColor('tableMonths', e.target.value)} />
-            </div>
-          </div>
-
-          <div className="layout-section">
-            <h4>Qator — Narx</h4>
-            <div className="layout-grid">
-              <input type="number" value={layout.tablePrice.font} onChange={e => updateLayoutField('tablePrice', 'font', e.target.value, 8)} />
-              <input type="color" value={layout.tablePrice.color || '#0f172a'} onChange={e => updateLayoutColor('tablePrice', e.target.value)} />
-            </div>
-          </div>
-
-          <div className="layout-section">
-            <h4>Qator — Suffix (oy/so'mdan)</h4>
-            <div className="layout-grid">
-              <input type="number" value={layout.tableSuffix.font} onChange={e => updateLayoutField('tableSuffix', 'font', e.target.value, 6)} />
-              <input type="color" value={layout.tableSuffix.color || '#111827'} onChange={e => updateLayoutColor('tableSuffix', e.target.value)} />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="card">
-        <h3>Nasiya shartlari (hammasi uchun)</h3>
-        {planError ? <div className="inline-error">{planError}</div> : null}
-        <div className="plans">
-          {plans.map(row => (
-            <div className="plan-row" key={row.id}>
-              <input value={row.months} onChange={e => updatePlanRow(row.id, 'months', e.target.value)} inputMode="numeric" />
-              <span>oy</span>
-              <input value={row.percent} onChange={e => updatePlanRow(row.id, 'percent', e.target.value)} inputMode="decimal" />
-              <span>%</span>
-              <button type="button" className="plan-del" onClick={() => removePlan(row.id)}>✕</button>
-            </div>
-          ))}
-        </div>
-        <button type="button" onClick={addPlan}>➕ Qator qo‘shish</button>
-      </div>
-
-      <div className="card">
-        <h3>Sennik foni</h3>
-        <div className="theme-toggle">
-          <button type="button" className={`theme-btn ${theme === 'light' ? 'is-active' : ''}`} onClick={() => setTheme('light')}>Oq</button>
-          <button type="button" className={`theme-btn ${theme === 'dark' ? 'is-active' : ''}`} onClick={() => setTheme('dark')}>Qora</button>
-        </div>
-      </div>
-
-      <div className="card">
-        <h3>Sennik razmeri</h3>
-        <div className="size-toggle">
-          <button type="button" className={`size-btn ${size === 'lg' ? 'is-active' : ''}`} onClick={() => setSize('lg')}>Katta</button>
-          <button type="button" className={`size-btn ${size === 'md' ? 'is-active' : ''}`} onClick={() => setSize('md')}>O'rta</button>
-          <button type="button" className={`size-btn ${size === 'sm' ? 'is-active' : ''}`} onClick={() => setSize('sm')}>Kichik</button>
-        </div>
-      </div>
-
-      <div className="card">
-        <h3>✍️ Qo‘lda mahsulot kiritish</h3>
-        {manualProducts.map(row => (
-          <div className="manual-row" key={row.id}>
-            <input value={row.name} onChange={e => updateManual(row.id, 'name', e.target.value)} placeholder="Nomi" />
-            <input value={row.price} onChange={e => updateManual(row.id, 'price', e.target.value)} placeholder="Narxi" inputMode="decimal" />
-            <button type="button" className="danger" onClick={() => removeManual(row.id)}>✕</button>
-          </div>
-        ))}
-        <button type="button" onClick={addManual}>➕ Qo‘shish</button>
-      </div>
-
-      <div className="card">
-        <h3>📊 Excel orqali import</h3>
-        {excelError ? <div className="inline-error">{excelError}</div> : null}
-        <input type="file" accept=".xlsx" onChange={onExcelChange} />
-        <p className="hint">1-ustun: mahsulot nomi, 2-ustun: narxi</p>
-        <p className="hint">Import qilingan qatorlar: {excelData.length}</p>
-      </div>
-
-      <button className="primary" type="button" onClick={generateAll}>🎨 Senniklarni yaratish</button>
-
-      <div className="card section-title">2) Shablon ustida maydon belgilash</div>
-
-      <div className="card">
-        <label>Shablon rasmi (fon)</label>
-        <div className="logo-box">
-          <input type="file" accept="image/*" onChange={e => onUploadImage(e, setTemplateUrl, templateUrl)} />
-          {templateUrl ? <img src={templateUrl} alt="Template" /> : null}
-          <button type="button" onClick={removeTemplate}>❌ Shablonni olib tashlash</button>
-        </div>
-
-        <p className="hint">Maydonni sichqoncha bilan ushlab siljiting. Past o'ng burchakdan eni/balandligini o'zgartiring.</p>
-
-        <div className="template-editor">
-          <div
-            className={`template-board ${templateUrl ? '' : 'is-empty'}`}
-            ref={previewBoardRef}
-            style={templateUrl ? { backgroundImage: `url(${templateUrl})` } : undefined}
-          >
-            {fieldBoxes.map(box => (
-              <button
-                type="button"
-                key={box.field}
-                className={`field-box ${(selectedField === box.field || multiSelected.includes(box.field)) ? 'is-active' : ''}`}
-                style={{
-                  left: `${(box.x / BASE_W) * 100}%`,
-                  top: `${(box.y / BASE_H) * 100}%`,
-                  width: `${(box.w / BASE_W) * 100}%`,
-                  height: `${(box.h / BASE_H) * 100}%`
-                }}
-                onMouseDown={e => onFieldDragStart(e, box.field)}
-                onClick={() => { setSelectedField(box.field); setMultiSelected([box.field]); }}
-                onContextMenu={e => { e.preventDefault(); setSelectedField(box.field); setMultiSelected(prev => prev.includes(box.field) ? prev.filter(f => f !== box.field) : [...prev, box.field]); }}
-              >
-                <span>{
-                  box.field.startsWith('rowMonths')
-                    ? `Oy ${Number(box.field.split(':')[1]) + 1}`
-                    : box.field.startsWith('rowPrice')
-                      ? `Narx ${Number(box.field.split(':')[1]) + 1}`
-                      : fieldTitles[box.field]
-                }</span>
-                <i
-                  className="resize-handle"
-                  onMouseDown={e => onFieldResizeStart(e, box.field)}
-                />
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Word-like Typography Toolbar */}
-        <div className="typebar card">
-          {(() => {
-            const styleTarget = selectedField.startsWith('rowMonths')
-              ? 'tableMonths'
-              : selectedField.startsWith('rowPrice')
-                ? 'tablePrice'
-                : selectedField === 'price'
-                  ? 'price'
-                  : 'product';
-            const styleObj = layout[styleTarget] || {};
-            const families = ['Inter','Roboto','Poppins','Montserrat','Nunito','Arial','system-ui'];
-            const weights = [
-              { v: '400', label: 'Regular' },
-              { v: '600', label: 'SemiBold' },
-              { v: '700', label: 'Bold' },
-              { v: '800', label: 'ExtraBold' },
-              { v: '900', label: 'Black' }
-            ];
-            const sizes = [12,14,16,18,20,22,24,26,28,32,36,40,48,54,58,60,66];
-            const swatches = ['#111827','#0f172a','#ffffff','#fbbf24','#ef4444','#22c55e','#10b981','#3b82f6','#6366f1','#a855f7','#f59e0b'];
-            const titleMap = { product: 'Mahsulot nomi', price: 'Asl narx', tableMonths: 'Qator — Oylar', tablePrice: 'Qator — Narx' };
-            return (
-              <div>
-                <div className="typebar-row">
-                  <div className="typebar-title">{titleMap[styleTarget]}</div>
-                  <select className="typebar-select" value={styleObj.fontFamily || 'Inter'} onChange={e => updateLayoutString(styleTarget, 'fontFamily', e.target.value)}>
-                    {families.map(f => (<option key={f} value={f}>{f}</option>))}
-                  </select>
-                  <input list="fontSizes" className="typebar-size" type="number" value={styleObj.font || 24} onChange={e => updateLayoutField(styleTarget, 'font', e.target.value, 6)} />
-                  <datalist id="fontSizes">
-                    {sizes.map(s => (<option key={s} value={s} />))}
-                  </datalist>
-                  <div className="btn-group">
-                    {weights.map(w => (
-                      <button type="button" key={w.v} className={`btn ${String(styleObj.weight || '800') === w.v ? 'is-active' : ''}`} onClick={() => updateLayoutString(styleTarget, 'weight', w.v)}>{w.label}</button>
-                    ))}
-                  </div>
-                  <input className="typebar-color" type="color" value={styleObj.color || '#111827'} onChange={e => updateLayoutColor(styleTarget, e.target.value)} />
+        <main className="content">
+          {activePage === 'auto' ? (
+            <>
+              <div className="page-hero card">
+                <div>
+                  <div className="page-kicker">Premium automation</div>
+                  <h2>Automatic Invoice Generator</h2>
+                  <p>Upload Excel data, apply installment rules, and generate polished price sheets in seconds.</p>
                 </div>
-                <div className="typebar-row swatches">
-                  {swatches.map(c => (
-                    <button type="button" key={c} className="swatch" style={{ backgroundColor: c }} onClick={() => updateLayoutColor(styleTarget, c)} />
+              </div>
+
+              <div className="card section-title">Asosiy sozlamalar</div>
+
+              <div className="card">
+                <div className="section-header">
+                  <div>
+                    <h3>Company Settings</h3>
+                    <p>Brand your exported documents with company details and logo.</p>
+                  </div>
+                </div>
+
+                <label>Company Name</label>
+                <input value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="Enter your company or store name" />
+
+                <label>Company Logo</label>
+                <div className="logo-box">
+                  <label className="upload-dropzone">
+                    <input className="sr-only" type="file" accept="image/*" onChange={e => onUploadImage(e, setLogoUrl, logoUrl, setLogoFileName)} />
+                    <div className="upload-icon"><Icon name="upload" size={22} /></div>
+                    <div className="upload-title">Upload your logo</div>
+                    <div className="upload-subtitle">Drag and drop or click to browse PNG, JPG, SVG files</div>
+                  </label>
+                  {logoUrl ? (
+                    <div className="file-preview">
+                      <img src={logoUrl} alt="Logo" />
+                      <div>
+                        <div className="file-name">{logoFileName || 'Logo uploaded'}</div>
+                        <div className="file-meta">Brand asset ready for export</div>
+                      </div>
+                      <button type="button" className="ghost-danger" onClick={removeLogo}>
+                        <Icon name="trash" size={16} />
+                        <span>Remove</span>
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="section-header">
+                  <div>
+                    <h3>Installment Settings</h3>
+                    <p>Define payment terms once and apply them across all generated sheets.</p>
+                  </div>
+                </div>
+                {planError ? <div className="inline-error">{planError}</div> : null}
+                <div className="plans">
+                  {plans.map(row => (
+                    <div className="plan-row" key={row.id}>
+                      <input value={row.months} onChange={e => updatePlanRow(row.id, 'months', e.target.value)} inputMode="numeric" placeholder="Months" />
+                      <span className="plan-tag">Months</span>
+                      <input value={row.percent} onChange={e => updatePlanRow(row.id, 'percent', e.target.value)} inputMode="decimal" placeholder="Percentage" />
+                      <span className="plan-tag">%</span>
+                      <button type="button" className="plan-del" onClick={() => removePlan(row.id)}><Icon name="trash" size={14} /></button>
+                    </div>
                   ))}
                 </div>
+                <button type="button" className="ghost-btn" onClick={addPlan}>
+                  <Icon name="plus" size={16} />
+                  <span>Add row</span>
+                </button>
               </div>
-            );
-          })()}
-        </div>
 
-        <div className="layout-sections">
-          <div className="layout-section">
-            <h4>{fieldTitles[selectedField]}</h4>
-            {selectedField === 'shopName' ? (
-              <div className="layout-grid">
-                <input type="number" value={layout.shopName.x} onChange={e => updateLayoutField('shopName', 'x', e.target.value)} />
-                <input type="number" value={layout.shopName.y} onChange={e => updateLayoutField('shopName', 'y', e.target.value)} />
-                <input type="number" value={layout.shopName.maxW} onChange={e => updateLayoutField('shopName', 'maxW', e.target.value, 1)} />
-                <input type="number" value={layout.shopName.font} onChange={e => updateLayoutField('shopName', 'font', e.target.value, 8)} />
+              <div className="card">
+                <div className="section-header">
+                  <div>
+                    <h3>Appearance Settings</h3>
+                    <p>Fine-tune background style and export sizing.</p>
+                  </div>
+                </div>
+                <div className="settings-grid">
+                  <div>
+                    <div className="settings-label">Background</div>
+                    <div className="theme-toggle">
+                      <button type="button" className={`theme-btn ${theme === 'light' ? 'is-active' : ''}`} onClick={() => setTheme('light')}>White</button>
+                      <button type="button" className={`theme-btn ${theme === 'dark' ? 'is-active' : ''}`} onClick={() => setTheme('dark')}>Dark</button>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="settings-label">Size</div>
+                    <div className="size-toggle">
+                      <button type="button" className={`size-btn ${size === 'lg' ? 'is-active' : ''}`} onClick={() => setSize('lg')}>Large</button>
+                      <button type="button" className={`size-btn ${size === 'md' ? 'is-active' : ''}`} onClick={() => setSize('md')}>Medium</button>
+                      <button type="button" className={`size-btn ${size === 'sm' ? 'is-active' : ''}`} onClick={() => setSize('sm')}>Small</button>
+                    </div>
+                  </div>
+                </div>
               </div>
-            ) : null}
 
-            {selectedField === 'logo' ? (
-              <div className="layout-grid">
-                <input type="number" value={layout.logo.x} onChange={e => updateLayoutField('logo', 'x', e.target.value)} />
-                <input type="number" value={layout.logo.y} onChange={e => updateLayoutField('logo', 'y', e.target.value)} />
-                <input type="number" value={layout.logo.maxW} onChange={e => updateLayoutField('logo', 'maxW', e.target.value, 1)} />
-                <input type="number" value={layout.logo.maxH} onChange={e => updateLayoutField('logo', 'maxH', e.target.value, 1)} />
+              <div className="card">
+                <div className="section-header">
+                  <div>
+                    <h3>Excel Import</h3>
+                    <p>Bring in product names and prices from a spreadsheet.</p>
+                  </div>
+                </div>
+                {excelError ? <div className="inline-error">{excelError}</div> : null}
+                <label className="upload-dropzone upload-dropzone-excel">
+                  <input className="sr-only" type="file" accept=".xlsx" onChange={onExcelChange} />
+                  <div className="upload-icon excel"><Icon name="excel" size={22} /></div>
+                  <div className="upload-title">Upload Excel file</div>
+                  <div className="upload-subtitle">Column 1: Product name, Column 2: Price</div>
+                </label>
+                {excelFileName ? (
+                  <div className="file-preview success">
+                    <div className="success-badge"><Icon name="check" size={16} /></div>
+                    <div>
+                      <div className="file-name">{excelFileName}</div>
+                      <div className="file-meta">{excelData.length} rows imported and ready to generate</div>
+                    </div>
+                  </div>
+                ) : null}
               </div>
-            ) : null}
 
-            {selectedField === 'product' ? (
-              <div className="layout-grid">
-                <input type="number" value={layout.product.x} onChange={e => updateLayoutField('product', 'x', e.target.value)} />
-                <input type="number" value={layout.product.y} onChange={e => updateLayoutField('product', 'y', e.target.value)} />
-                <input type="number" value={layout.product.maxW} onChange={e => updateLayoutField('product', 'maxW', e.target.value, 1)} />
-                <input type="number" value={layout.product.font} onChange={e => updateLayoutField('product', 'font', e.target.value, 8)} />
-                <input type="number" value={Math.max(40, Math.round(layout.product.boxH || ((layout.product.font || 66) * 1.1 * 3)))} onChange={e => updateLayoutField('product', 'boxH', e.target.value, 20)} />
+              <button className={`primary primary-hero ${isGeneratingAuto ? 'is-loading' : ''}`} type="button" onClick={generateAutomatic} disabled={isGeneratingAuto}>
+                <Icon name="sparkles" size={18} />
+                <span>{isGeneratingAuto ? 'Generating...' : 'Generate Invoice'}</span>
+              </button>
+
+              <div className="card live-preview-card">
+                <div className="section-header">
+                  <div>
+                    <h3>Live Preview</h3>
+                    <p>A polished preview of your generated invoice style.</p>
+                  </div>
+                </div>
+                <div className="invoice-mock">
+                  <div className="invoice-mock-top">
+                    <div>
+                      <div className="invoice-brand">{companyName || 'Generator Pro Store'}</div>
+                      <div className="invoice-label">Installment invoice preview</div>
+                    </div>
+                    <div className="invoice-pill">{theme === 'dark' ? 'Dark theme' : 'Light theme'}</div>
+                  </div>
+                  <div className="invoice-mock-product">{excelData[0]?.name || 'iPhone 15 Pro Max'}</div>
+                  <div className="invoice-mock-price">{formatUzs(excelData[0]?.price || 14999000)}</div>
+                  <div className="invoice-grid">
+                    {validPlans.slice(0, 3).map(plan => (
+                      <div key={`${plan.months}-${plan.percent}`} className="invoice-grid-row">
+                        <span>{plan.months} months</span>
+                        <strong>{formatUzs(calcMonthly(excelData[0]?.price || 14999000, plan.months, plan.percent))}</strong>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
-            ) : null}
 
-            {selectedField === 'price' ? (
-              <div className="layout-grid">
-                <input type="number" value={layout.price.x} onChange={e => updateLayoutField('price', 'x', e.target.value)} />
-                <input type="number" value={layout.price.y} onChange={e => updateLayoutField('price', 'y', e.target.value)} />
-                <input type="number" value={layout.price.font} onChange={e => updateLayoutField('price', 'font', e.target.value, 8)} />
-                <input type="number" value={layout.price.dividerY} onChange={e => updateLayoutField('price', 'dividerY', e.target.value)} />
+              {renderPreviewSection('Generated Sheets', excelImgs)}
+
+              <div className="action-row">
+                <button className="soft-btn action-btn" type="button" disabled={!excelImgs.length} onClick={() => makeZip(excelImgs, 'excel_senniklar.zip')}>
+                  <Icon name="zip" size={16} />
+                  <span>Export ZIP</span>
+                </button>
+                <button className="soft-btn action-btn" type="button" disabled={!excelImgs.length} onClick={() => downloadPdf(excelImgs, 'excel_senniklar.pdf')}>
+                  <Icon name="pdf" size={16} />
+                  <span>Export PDF</span>
+                </button>
               </div>
-            ) : null}
-
-            {selectedField === 'table' ? (
-              <div className="layout-grid layout-grid-wide">
-                <input type="number" value={layout.table.x} onChange={e => updateLayoutField('table', 'x', e.target.value)} />
-                <input type="number" value={layout.table.y} onChange={e => updateLayoutField('table', 'y', e.target.value)} />
-                <input type="number" value={layout.table.w} onChange={e => updateLayoutField('table', 'w', e.target.value, 1)} />
-                <input type="number" value={layout.table.headerH} onChange={e => updateLayoutField('table', 'headerH', e.target.value, 1)} />
-                <input type="number" value={layout.table.rowH} onChange={e => updateLayoutField('table', 'rowH', e.target.value, 1)} />
+            </>
+          ) : (
+            <>
+              <div className="page-hero card">
+                <div>
+                  <div className="page-kicker">Manual studio</div>
+                  <h2>Manual Invoice Studio</h2>
+                  <p>Compose premium price sheets with manual product input, custom backgrounds, and precise layout control.</p>
+                </div>
               </div>
-            ) : null}
 
-            {selectedField === 'tableMonths' ? (
-              <div className="layout-grid">
-                <input type="number" value={layout.tableMonths.x} onChange={e => updateLayoutField('tableMonths', 'x', e.target.value)} />
-                <input type="number" value={layout.table.y - layout.table.headerH} disabled />
-                <input type="number" value={layout.tableMonths.w} onChange={e => updateLayoutField('tableMonths', 'w', e.target.value, 1)} />
-                <input type="number" value={layout.table.headerH + layout.table.rowH * Math.max(validPlans.length,1)} disabled />
+              <div className="card section-title">Manual sozlamalar</div>
+
+              <div className="card">
+                <div className="section-header">
+                  <div>
+                    <h3>Company Settings</h3>
+                    <p>Set your manual invoice branding before arranging the layout.</p>
+                  </div>
+                </div>
+
+                <label>Company Name</label>
+                <input value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="Enter your company or store name" />
+
+                <label>Company Logo</label>
+                <div className="logo-box">
+                  <label className="upload-dropzone">
+                    <input className="sr-only" type="file" accept="image/*" onChange={e => onUploadImage(e, setLogoUrl, logoUrl, setLogoFileName)} />
+                    <div className="upload-icon"><Icon name="upload" size={22} /></div>
+                    <div className="upload-title">Upload your logo</div>
+                    <div className="upload-subtitle">Drag and drop or click to browse PNG, JPG, SVG files</div>
+                  </label>
+                  {logoUrl ? (
+                    <div className="file-preview">
+                      <img src={logoUrl} alt="Logo" />
+                      <div>
+                        <div className="file-name">{logoFileName || 'Logo uploaded'}</div>
+                        <div className="file-meta">Ready for manual layout</div>
+                      </div>
+                      <button type="button" className="ghost-danger" onClick={removeLogo}>
+                        <Icon name="trash" size={16} />
+                        <span>Remove</span>
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
               </div>
-            ) : null}
 
-            {selectedField === 'tablePrice' ? (
-              <div className="layout-grid">
-                <input type="number" value={layout.tablePrice.x} onChange={e => updateLayoutField('tablePrice', 'x', e.target.value)} />
-                <input type="number" value={layout.table.y - layout.table.headerH} disabled />
-                <input type="number" value={layout.tablePrice.w} onChange={e => updateLayoutField('tablePrice', 'w', e.target.value, 1)} />
-                <input type="number" value={layout.table.headerH + layout.table.rowH * Math.max(validPlans.length,1)} disabled />
+              <div className="card">
+                <div className="section-header">
+                  <div>
+                    <h3>Installment Settings</h3>
+                    <p>Use consistent financing rules inside manual mode as well.</p>
+                  </div>
+                </div>
+                {planError ? <div className="inline-error">{planError}</div> : null}
+                <div className="plans">
+                  {plans.map(row => (
+                    <div className="plan-row" key={row.id}>
+                      <input value={row.months} onChange={e => updatePlanRow(row.id, 'months', e.target.value)} inputMode="numeric" placeholder="Months" />
+                      <span className="plan-tag">Months</span>
+                      <input value={row.percent} onChange={e => updatePlanRow(row.id, 'percent', e.target.value)} inputMode="decimal" placeholder="Percentage" />
+                      <span className="plan-tag">%</span>
+                      <button type="button" className="plan-del" onClick={() => removePlan(row.id)}><Icon name="trash" size={14} /></button>
+                    </div>
+                  ))}
+                </div>
+                <button type="button" className="ghost-btn" onClick={addPlan}>
+                  <Icon name="plus" size={16} />
+                  <span>Add row</span>
+                </button>
               </div>
-            ) : null}
-          </div>
-        </div>
-      </div>
 
-      <h3>🖼 Preview (qo‘lda)</h3>
-      <div className="preview-grid">
-        {manualImgs.map(item => {
-          const safe = safeFileName(item.name) || 'sennik';
-          return (
-            <div className="preview-card" key={`${safe}_${item.price}`}>
-              <img src={item.img} alt={safe} />
-              <div className="preview-actions">
-                <a className="secondary" href={item.img} download={`${safe}.png`}>PNG yuklab olish</a>
+              <div className="card">
+                <div className="section-header">
+                  <div>
+                    <h3>Appearance Settings</h3>
+                    <p>Adjust background and sheet density for the final output.</p>
+                  </div>
+                </div>
+                <div className="settings-grid">
+                  <div>
+                    <div className="settings-label">Background</div>
+                    <div className="theme-toggle">
+                      <button type="button" className={`theme-btn ${theme === 'light' ? 'is-active' : ''}`} onClick={() => setTheme('light')}>White</button>
+                      <button type="button" className={`theme-btn ${theme === 'dark' ? 'is-active' : ''}`} onClick={() => setTheme('dark')}>Dark</button>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="settings-label">Size</div>
+                    <div className="size-toggle">
+                      <button type="button" className={`size-btn ${size === 'lg' ? 'is-active' : ''}`} onClick={() => setSize('lg')}>Large</button>
+                      <button type="button" className={`size-btn ${size === 'md' ? 'is-active' : ''}`} onClick={() => setSize('md')}>Medium</button>
+                      <button type="button" className={`size-btn ${size === 'sm' ? 'is-active' : ''}`} onClick={() => setSize('sm')}>Small</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="section-header">
+                  <div>
+                    <h3>Manual Products</h3>
+                    <p>Add products one by one for a curated invoice sheet.</p>
+                  </div>
+                </div>
+                {manualProducts.map(row => (
+                  <div className="manual-row" key={row.id}>
+                    <input value={row.name} onChange={e => updateManual(row.id, 'name', e.target.value)} placeholder="Product name" />
+                    <input value={row.price} onChange={e => updateManual(row.id, 'price', e.target.value)} placeholder="Price" inputMode="decimal" />
+                    <button type="button" className="danger" onClick={() => removeManual(row.id)}><Icon name="trash" size={14} /></button>
+                  </div>
+                ))}
+                <button type="button" className="ghost-btn" onClick={addManual}>
+                  <Icon name="plus" size={16} />
+                  <span>Add product</span>
+                </button>
+              </div>
+
+              <div className="card section-title">Shablon ustida maydon belgilash</div>
+
+              <div className="card">
+                <div className="section-header">
+                  <div>
+                    <h3>Editable Canvas</h3>
+                    <p>Upload a background and drag invoice blocks into the perfect place.</p>
+                  </div>
+                </div>
+                <label>Background Template</label>
+                <div className="logo-box">
+                  <label className="upload-dropzone">
+                    <input className="sr-only" type="file" accept="image/*" onChange={e => onUploadImage(e, setTemplateUrl, templateUrl, setTemplateFileName)} />
+                    <div className="upload-icon"><Icon name="upload" size={22} /></div>
+                    <div className="upload-title">Upload canvas background</div>
+                    <div className="upload-subtitle">Use a photo, branded banner, or clean poster background</div>
+                  </label>
+                  {templateUrl ? (
+                    <div className="file-preview">
+                      <img src={templateUrl} alt="Template" />
+                      <div>
+                        <div className="file-name">{templateFileName || 'Template uploaded'}</div>
+                        <div className="file-meta">Canvas background is active</div>
+                      </div>
+                      <button type="button" className="ghost-danger" onClick={removeTemplate}>
+                        <Icon name="trash" size={16} />
+                        <span>Remove</span>
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+
+                <p className="hint">Drag blocks to reposition them. Use the bottom-right handle to resize fields smoothly.</p>
+
+                <div className="template-workspace">
+                  <div className="template-editor">
+                    <div
+                      className={`template-board ${templateUrl ? '' : 'is-empty'}`}
+                      ref={previewBoardRef}
+                      style={templateUrl ? { backgroundImage: `url(${templateUrl})` } : undefined}
+                    >
+                      {fieldBoxes.map(box => (
+                        <button
+                          type="button"
+                          key={box.field}
+                          className={`field-box ${(selectedField === box.field || multiSelected.includes(box.field)) ? 'is-active' : ''}`}
+                          style={{
+                            left: `${(box.x / BASE_W) * 100}%`,
+                            top: `${(box.y / BASE_H) * 100}%`,
+                            width: `${(box.w / BASE_W) * 100}%`,
+                            height: `${(box.h / BASE_H) * 100}%`
+                          }}
+                          onMouseDown={e => onFieldDragStart(e, box.field)}
+                          onClick={() => { setSelectedField(box.field); setMultiSelected([box.field]); }}
+                          onContextMenu={e => { e.preventDefault(); setSelectedField(box.field); setMultiSelected(prev => prev.includes(box.field) ? prev.filter(f => f !== box.field) : [...prev, box.field]); }}
+                        >
+                          <span>{
+                            box.field.startsWith('rowMonths')
+                              ? `Oy ${Number(box.field.split(':')[1]) + 1}`
+                              : box.field.startsWith('rowPrice')
+                                ? `Narx ${Number(box.field.split(':')[1]) + 1}`
+                                : fieldTitles[box.field]
+                          }</span>
+                          <i className="resize-handle" onMouseDown={e => onFieldResizeStart(e, box.field)} />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <aside className="inspector">
+                    <div className="inspector-head">
+                      <div className="inspector-title">
+                        {hasSelection
+                          ? (selectionKind === 'rowMonths'
+                            ? `Oy kataklari (${selectedKeys.length})`
+                            : selectionKind === 'rowPrice'
+                              ? `Narx kataklari (${selectedKeys.length})`
+                              : selectionKind === 'product'
+                                ? 'Mahsulot nomi'
+                                : selectionKind === 'price'
+                                  ? 'Asl narx'
+                                  : selectionKind === 'mixed'
+                                    ? `Tanlangan (${selectedKeys.length})`
+                                    : fieldTitles[selectedField])
+                          : 'Inspector'}
+                      </div>
+                      <div className="inspector-sub">
+                        {hasSelection ? `Tanlangan: ${selectedKeys.length} ta` : "Maydondan birini bosing (yoki right-click bilan bir nechta tanlang)"}
+                      </div>
+                    </div>
+
+                    <div className="inspector-tabs">
+                      <button type="button" className={`inspector-tab ${inspectorTab === 'text' ? 'is-active' : ''}`} onClick={() => setInspectorTab('text')}>Text</button>
+                      <button type="button" className={`inspector-tab ${inspectorTab === 'position' ? 'is-active' : ''}`} onClick={() => setInspectorTab('position')}>Position</button>
+                      <button type="button" className={`inspector-tab ${inspectorTab === 'size' ? 'is-active' : ''}`} onClick={() => setInspectorTab('size')}>Size</button>
+                    </div>
+
+                    {!hasSelection ? (
+                      <div className="inspector-empty">
+                        <div className="inspector-empty-title">Boshlash uchun</div>
+                        <div className="inspector-empty-text">
+                          Shablondagi maydonni chap bosib tanlang.
+                          <br />Bir nechta katak tanlash uchun right-click qiling.
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {hasSelection && inspectorTab === 'text' ? (
+                      <div className="inspector-body">
+                        {(() => {
+                          const styleObj = layout[styleTarget] || {};
+                          const families = ['Inter', 'Roboto', 'Poppins', 'Montserrat', 'Nunito', 'Arial', 'system-ui'];
+                          const weights = [
+                            { v: '400', label: 'Regular' },
+                            { v: '600', label: 'SemiBold' },
+                            { v: '700', label: 'Bold' },
+                            { v: '800', label: 'ExtraBold' },
+                            { v: '900', label: 'Black' }
+                          ];
+                          const swatches = ['#111827', '#0f172a', '#ffffff', '#fbbf24', '#ef4444', '#22c55e', '#10b981', '#3b82f6', '#6366f1', '#a855f7', '#f59e0b'];
+                          return (
+                            <>
+                              <div className="inspector-group">
+                                <div className="inspector-label">Font</div>
+                                <select className="typebar-select" value={styleObj.fontFamily || 'Inter'} onChange={e => updateLayoutString(styleTarget, 'fontFamily', e.target.value)}>
+                                  {families.map(f => <option key={f} value={f}>{f}</option>)}
+                                </select>
+                              </div>
+
+                              <div className="inspector-row">
+                                <div className="inspector-group">
+                                  <div className="inspector-label">Size</div>
+                                  <input className="typebar-size" type="number" value={styleObj.font || 24} onChange={e => updateLayoutField(styleTarget, 'font', e.target.value, 6)} />
+                                </div>
+                                <div className="inspector-group">
+                                  <div className="inspector-label">Color</div>
+                                  <input className="typebar-color" type="color" value={styleObj.color || '#111827'} onChange={e => updateLayoutColor(styleTarget, e.target.value)} />
+                                </div>
+                              </div>
+
+                              <div className="inspector-group">
+                                <div className="inspector-label">Weight</div>
+                                <div className="btn-group">
+                                  {weights.map(w => (
+                                    <button type="button" key={w.v} className={`btn ${String(styleObj.weight || '800') === w.v ? 'is-active' : ''}`} onClick={() => updateLayoutString(styleTarget, 'weight', w.v)}>{w.label}</button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div className="inspector-group">
+                                <div className="inspector-label">Swatches</div>
+                                <div className="typebar-row swatches">
+                                  {swatches.map(c => (
+                                    <button type="button" key={c} className="swatch" style={{ backgroundColor: c }} onClick={() => updateLayoutColor(styleTarget, c)} />
+                                  ))}
+                                </div>
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    ) : null}
+
+                    {hasSelection && inspectorTab === 'position' ? (
+                      <div className="inspector-body">
+                        {selectionKind === 'mixed' ? (
+                          <div className="inspector-empty-text">Aralash tanlov. Position sozlamasi hozir faqat bitta turdagi tanlovga ishlaydi.</div>
+                        ) : (
+                          <div className="inspector-row">
+                            <div className="inspector-group">
+                              <div className="inspector-label">X</div>
+                              <input type="number" value={(() => {
+                                if (selectionKind === 'rowMonths' || selectionKind === 'rowPrice') return '';
+                                if (selectionKind === 'product') return layout.product.x;
+                                if (selectionKind === 'price') return layout.price.x;
+                                return '';
+                              })()} placeholder={selectionKind.startsWith('row') ? '—' : ''} onChange={e => updateSelectionBoxNumber('x', e.target.value)} />
+                            </div>
+                            <div className="inspector-group">
+                              <div className="inspector-label">Y</div>
+                              <input type="number" value={(() => {
+                                if (selectionKind === 'rowMonths' || selectionKind === 'rowPrice') return '';
+                                if (selectionKind === 'product') return layout.product.y;
+                                if (selectionKind === 'price') return layout.price.y;
+                                return '';
+                              })()} placeholder={selectionKind.startsWith('row') ? '—' : ''} onChange={e => updateSelectionBoxNumber('y', e.target.value)} />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
+
+                    {hasSelection && inspectorTab === 'size' ? (
+                      <div className="inspector-body">
+                        {selectionKind === 'mixed' ? (
+                          <div className="inspector-empty-text">Aralash tanlov. Size sozlamasi hozir faqat bitta turdagi tanlovga ishlaydi.</div>
+                        ) : (
+                          <div className="inspector-row">
+                            <div className="inspector-group">
+                              <div className="inspector-label">W</div>
+                              <input type="number" placeholder={selectionKind.startsWith('row') ? '—' : ''} value={selectionKind === 'product' ? layout.product.maxW : ''} onChange={e => updateSelectionBoxNumber('w', e.target.value, 1)} />
+                            </div>
+                            <div className="inspector-group">
+                              <div className="inspector-label">H</div>
+                              <input type="number" placeholder={selectionKind.startsWith('row') ? '—' : ''} value={selectionKind === 'product' ? Math.max(40, Math.round(layout.product.boxH || ((layout.product.font || 66) * 1.1 * 3))) : ''} onChange={e => updateSelectionBoxNumber('h', e.target.value, 20)} />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
+                  </aside>
+                </div>
+              </div>
+
+              <button className={`primary primary-hero ${isGeneratingManual ? 'is-loading' : ''}`} type="button" onClick={generateManual} disabled={isGeneratingManual}>
+                <Icon name="sparkles" size={18} />
+                <span>{isGeneratingManual ? 'Generating...' : 'Generate Invoice'}</span>
+              </button>
+
+              {renderPreviewSection('Generated Sheets', manualImgs)}
+
+              <div className="action-row">
+                <button className="soft-btn action-btn" type="button" disabled={!manualImgs.length} onClick={() => makeZip(manualImgs, 'manual_senniklar.zip')}>
+                  <Icon name="zip" size={16} />
+                  <span>Export ZIP</span>
+                </button>
+                <button className="soft-btn action-btn" type="button" disabled={!manualImgs.length} onClick={() => downloadPdf(manualImgs, 'manual_senniklar.pdf')}>
+                  <Icon name="pdf" size={16} />
+                  <span>Export PDF</span>
+                </button>
+              </div>
+            </>
+          )}
+
+          {allCount ? (
+            <div className="card summary-card">
+              <div className="summary-title">Jami tayyor senniklar</div>
+              <div className="summary-stats">Manual: {manualImgs.length} ta, Avtomatik: {excelImgs.length} ta</div>
+              <div className="action-row">
+                <button className="soft-btn action-btn" type="button" disabled={!allCount} onClick={() => makeZip([...manualImgs, ...excelImgs], 'barcha_senniklar.zip')}>
+                  <Icon name="zip" size={16} />
+                  <span>Export All ZIP</span>
+                </button>
+                <button className="soft-btn action-btn" type="button" disabled={!allCount} onClick={() => downloadPdf([...manualImgs, ...excelImgs], 'barcha_senniklar.pdf')}>
+                  <Icon name="pdf" size={16} />
+                  <span>Export All PDF</span>
+                </button>
               </div>
             </div>
-          );
-        })}
+          ) : null}
+        </main>
       </div>
-
-      <h3>🖼 Preview (Excel)</h3>
-      <div className="preview-grid">
-        {excelImgs.map(item => {
-          const safe = safeFileName(item.name) || 'sennik';
-          return (
-            <div className="preview-card" key={`${safe}_${item.price}`}>
-              <img src={item.img} alt={safe} />
-              <div className="preview-actions">
-                <a className="secondary" href={item.img} download={`${safe}.png`}>PNG yuklab olish</a>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <button className="primary" type="button" disabled={!manualImgs.length} onClick={() => makeZip(manualImgs, 'manual_senniklar.zip')}>📦 Manual ZIP</button>
-      <button className="primary" type="button" disabled={!excelImgs.length} onClick={() => makeZip(excelImgs, 'excel_senniklar.zip')}>📦 Excel ZIP</button>
-      <button className="primary" type="button" disabled={!allCount} onClick={() => makeZip([...manualImgs, ...excelImgs], 'barcha_senniklar.zip')}>📦 Hammasini ZIP</button>
-      <button className="primary" type="button" disabled={!allCount} onClick={downloadPdfAll}>📄 Hammasini PDF (A4)</button>
 
       <canvas ref={canvasRef} width={BASE_W} height={BASE_H} hidden />
     </div>
